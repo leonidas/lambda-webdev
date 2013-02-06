@@ -49,7 +49,7 @@ There are some situations where `cabal-dev` doesn't work correctly on MacOS X
 so you might opt to use the regular cabal instead.
 
     cabal configure
-    cabal install --dependencies-only
+    cabal install --only-dependencies
     cabal build
 
 ### Starting the server
