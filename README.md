@@ -56,3 +56,13 @@ so you might opt to use the regular cabal instead.
 
     ./grunt
 
+
+## Editing Haskell sources
+
+In order to get proper auto-complete and other goodies, you should install [`ghc-mod`](http://www.mew.org/~kazu/proj/ghc-mod/en/).
+
+    cabal install ghc-mod
+
+The tool works with either vim, emacs or Sublime Text (via [SublimeHaskell](https://github.com/SublimeHaskell/SublimeHaskell)). For SublimeHaskell, you also need to run
+
+    cabal install aeson haskell-src-exts
