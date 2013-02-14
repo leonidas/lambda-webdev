@@ -47,8 +47,8 @@ module.exports = (grunt) ->
         tasks: ["jade", "reload"]
 
       server:
-        files: ["src/hs/**/*.hs"]
-        tasks: ["server"]
+        files: ["src/hs/**/*.hs", "lib/**/*.hs"]
+        tasks: ["server", "reload"]
 
     reload:
       port: 6001
@@ -83,10 +83,12 @@ module.exports = (grunt) ->
           child_process.exec 'ls -d cabal-dev/packages-*.conf', (err, pkgdir) ->
             serverProc = child_process.spawn 'runghc', ['-isrc/hs', "-package-conf=#{pkgdir}", 'Main'],
               stdio: 'inherit'
+              stderr: 'inherit'
             waitForServer triggerReload
         else
-          serverProc = child_process.spawn 'runghc', ['-isrc/hs', 'Main'],
+          serverProc = child_process.spawn 'runghc', ['-isrc/hs', '-ilib', 'Main'],
             stdio: 'inherit'
+            stderr: 'inherit'
           waitForServer triggerReload
         done()
 
