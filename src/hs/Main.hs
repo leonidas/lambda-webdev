@@ -63,12 +63,21 @@ instance FromJSON Piece where
     parseJSON _ = fail "invalid Piece"
 
 instance ToJSON Board where
-    toJSON (Board mp) = toJSON $ Map.assocs mp
+    toJSON (Board mp) = toJSON $
+        [ [Map.lookup (Coord r, Coord c) mp| r <- [1..3]]
+        | c <- [1..3]
+        ]
 
 instance FromJSON Board where
     parseJSON js = do
-        assocs <- parseJSON js
-        return $ Board $ Map.fromList assocs
+        rows <- parseJSON js
+        let assocs = do
+                (r, row) <- zip [1..3] rows
+                (c, piece) <- zip [1..3] row
+                case piece of
+                    Just p -> return ((Coord r, Coord c), p)
+                    _      -> []
+        return $ Board $ Map.fromList assocs
 
 instance Message NameNotification
 instance Message ServerRequest
