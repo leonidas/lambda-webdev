@@ -126,12 +126,12 @@ nextReqId (Connection {..}) = do
     return rqId
 
 
-onRequest :: (Message req, Message resp) => Connection -> (req -> IO resp) -> STM ()
+onRequest :: (Message req, ToJSON resp) => Connection -> (req -> IO resp) -> STM ()
 onRequest conn@(Connection {..}) !handler = do
     sid <- nextSubId conn
     modifyTVar' requestSubs (IntMap.insert sid handler') where
         handler' js = case msgFromJSON js of
-            Json.Success rq -> return $! msgToJSON <$> handler rq
+            Json.Success rq -> return $! toJSON <$> handler rq
             Error _         -> retry
 
 onNotify :: Message req => Connection -> (req -> IO ()) -> STM ()
