@@ -8,8 +8,11 @@ require.config
 
 define (require) ->
 
-  $ = require 'jquery'
-  ko = require 'knockout'
+  $   = require 'jquery'
+  ko  = require 'knockout'
+  msg = require 'messaging'
+
+  conn = msg.connect("ws://localhost:8000/")
 
   class GameViewModel
     constructor: () ->
