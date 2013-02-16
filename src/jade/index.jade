@@ -3,18 +3,20 @@ html
   head
     link(rel='stylesheet', type='text/css', href="css/styles.css")
     script(type='text/javascript', data-main='js/modules/main', src='js/vendor/require.js')
-    script(type='text/javascript')
-    title Haskell WebDev Example
+    title Haskell WebDev Example!
   body
     #main
 
-      #prompt-nick.view
+      #prompt-nick(data-bind='if: view() == "enterName"')
         .dialog
-          form
+          form(data-bind='submit: enterName')
             label Choose you nickname
-            input(type='text', data-bind='value: newName')
+            input(type='text', data-bind='value: name')
 
-      #game.view
+      #waiting(data-bind='if: view() == "waiting"')
+        h1 Odotetaan vastapelaaja
+
+      #game(data-bind='if: view() == "game"')
         table.board
         button Play again
 

@@ -6,6 +6,21 @@ require.config
     mapping:  '../vendor/knockout.mapping'
 
 
-define ['jquery'], ($) ->
+define (require) ->
+
+  $ = require 'jquery'
+  ko = require 'knockout'
+
+  class GameViewModel
+    constructor: () ->
+      @name = ko.observable()
+      @view = ko.observable("enterName")
+
+    enterName: () ->
+      false
+
+  vmo = new GameViewModel()
+
+  ko.applyBindings vmo
 
   $('#main').show()

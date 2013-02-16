@@ -2,9 +2,12 @@
 
 import Network.Wai
 import Network.Wai.Handler.Warp
-import Network.HTTP.Types.Status
+
+import Network.Wai.Application.Static
+import WaiAppStatic.Types
 
 app :: Application
-app req = return $ responseLBS ok200 [] "Hello world!"
+app = staticApp $ (defaultFileServerSettings "public") { ssMaxAge = MaxAgeSeconds 1 }
 
+main :: IO ()
 main = run 8000 app
