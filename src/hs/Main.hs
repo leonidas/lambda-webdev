@@ -109,6 +109,8 @@ getMove (User{..}) = requestAsync userConn AskMove
 assignSides :: NewPlayer -> NewPlayer -> (Player X, Player O)
 assignSides pl1 pl2 = (unsafeCoerce pl1, unsafeCoerce pl2)
 
+type Symmetric a b = (a ~ Other b, b ~ Other a)
+
 type SymmetricMove turn =
     ( Other (Other turn) ~ turn
     , MoveAssoc (Move turn)
@@ -208,17 +210,21 @@ nextConnected queue = do
 playGame :: (Player X, Player O) -> IO ()
 playGame (px, po) = go px po newGame where
 
-    go :: (Other t ~ t', Other t' ~ t) => Player t -> Player t' -> Game t -> IO ()
+    go :: Symmetric t t' => Player t -> Player t' -> Game t -> IO ()
     go p p' (Game b t) = sendBoard >> foldGameState turn draw win t where
-        turn f =
-            let loop       = getMove p >>= join . atomically . foldFuture disco nextTurn
-                disco      = atomically $ notify (userConn p') WonGame
-                nextTurn m = maybe loop (go p' p) (f m)
-            in  loop
+        turn f = loop where
+            loop        = getMove p >>= resolveMove
+            resolveMove = join . atomically . foldFuture disco nextTurn
+            disco       = atomically $ notify (userConn p') WonGame
+            nextTurn m  = maybe loop (go p' p) (f m)
 
-        draw = undefined
+        draw = atomically $ do
+            notify (userConn p) DrawGame
+            notify (userConn p') DrawGame
 
-        win _ = undefined
+        win _ = atomically $ do
+            notify (userConn p) LostGame
+            notify (userConn p') WonGame
 
         sendBoard = atomically $ do
             notify (userConn p)  (GameBoard b)
