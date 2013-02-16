@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 
 import Network.Wai (Application)
@@ -65,6 +65,15 @@ type instance Other O = X
 
 newtype Move (piece :: Piece) = Move Position deriving (FromJSON, ToJSON)
 
+class MoveAssoc m where
+    moveAssoc :: m -> (Position, Piece)
+
+instance MoveAssoc (Move X) where
+    moveAssoc (Move pos) = (pos, X)
+
+instance MoveAssoc (Move O) where
+    moveAssoc (Move pos) = (pos, O)
+
 data User (piece :: Maybe Piece) = User
     { userName :: String
     , userConn :: Connection
@@ -100,18 +109,21 @@ getMove (User{..}) = requestAsync userConn AskMove
 assignSides :: NewPlayer -> NewPlayer -> (Player X, Player O)
 assignSides pl1 pl2 = (unsafeCoerce pl1, unsafeCoerce pl2)
 
-newGame :: Game X
-newGame = Game newBoard $ Turn $ go X newBoard where
+type SymmetricMove turn =
+    ( Other (Other turn) ~ turn
+    , MoveAssoc (Move turn)
+    , MoveAssoc (Move (Other turn))
+    )
 
-    go :: Piece -> Board -> Move turn -> Maybe (Game (Other turn))
-    go p (Board mp) (Move pos)
+newGame :: Game X
+newGame = Game newBoard $ Turn $ go newBoard where
+
+    go :: SymmetricMove turn => Board -> Move turn -> Maybe (Game (Other turn))
+    go (Board mp) move@(Move pos)
         | pos `Map.member` mp = Nothing
-        | otherwise = Just $ Game board' $ fromMaybe (Turn $ go p' board') gameOver where
-            board' = Board $ Map.insert pos p mp
+        | otherwise = Just $ Game board' $ fromMaybe (Turn $ go board') gameOver where
+            board' = Board $ uncurry Map.insert (moveAssoc move) mp
             gameOver = Nothing
-            p' = case p of
-                O -> X
-                X -> O
 
 
 instance ToJSON Coord where
