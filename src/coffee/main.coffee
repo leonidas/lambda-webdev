@@ -20,6 +20,7 @@ define (require) ->
       @view = ko.observable("enterName")
 
     enterName: () ->
+      conn.notify "Name", @name()
       false
 
   vmo = new GameViewModel()
