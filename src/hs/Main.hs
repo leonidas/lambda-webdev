@@ -9,6 +9,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE Rank2Types #-}
 
 
 import Network.Wai (Application)
@@ -25,7 +26,7 @@ import Data.Maybe (fromMaybe)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Data.Aeson (ToJSON(..), FromJSON(..), (.=))
+import Data.Aeson (ToJSON(..), FromJSON(..))
 import qualified Data.Aeson as JSON
 
 import Network.WebSockets.Messaging
@@ -35,7 +36,7 @@ import Network.WebSockets.Messaging
 import GHC.Generics (Generic)
 
 import Control.Applicative ((<|>),(<$>))
-import Control.Monad (void, liftM2, guard, join)
+import Control.Monad (void, liftM2, guard, join, when)
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM
 
@@ -46,6 +47,8 @@ data NameNotification = Name String deriving Generic
 data ServerRequest
     = AskName
     | AskMove
+    | AskNewGame
+    | FoundOpponent String
     | GameBoard Board
     | WonGame
     | LostGame
@@ -108,6 +111,9 @@ getMove (User{..}) = requestAsync userConn AskMove
 
 assignSides :: NewPlayer -> NewPlayer -> (Player X, Player O)
 assignSides pl1 pl2 = (unsafeCoerce pl1, unsafeCoerce pl2)
+
+stripSide :: Player t -> NewPlayer
+stripSide = unsafeCoerce
 
 type Symmetric a b = (a ~ Other b, b ~ Other a)
 
@@ -197,7 +203,7 @@ newBoard = Board $ Map.fromList
 matchMaker :: TChan NewPlayer -> IO ()
 matchMaker queue = do
     (p1,p2) <- atomically $ liftM2 (,) (readTChan queue) (readTChan queue)
-    void $ forkIO $ playGame $ assignSides p1 p2
+    void $ forkIO $ playGame queue $ assignSides p1 p2
 
 nextConnected :: TChan NewPlayer -> STM NewPlayer
 nextConnected queue = do
@@ -207,8 +213,14 @@ nextConnected queue = do
         then nextConnected queue
         else return u
 
-playGame :: (Player X, Player O) -> IO ()
-playGame (px, po) = go px po newGame where
+playGame :: TChan NewPlayer -> (Player X, Player O) -> IO ()
+playGame queue (px, po) = start >> play >> both requeue where
+
+    start = atomically $ do
+        notify (userConn px) $ FoundOpponent $ userName po
+        notify (userConn po) $ FoundOpponent $ userName px
+
+    play = go px po newGame
 
     go :: Symmetric t t' => Player t -> Player t' -> Game t -> IO ()
     go p p' (Game b t) = sendBoard >> foldGameState turn draw win t where
@@ -218,18 +230,21 @@ playGame (px, po) = go px po newGame where
             disco       = atomically $ notify (userConn p') WonGame
             nextTurn m  = maybe loop (go p' p) (f m)
 
-        draw = atomically $ do
-            notify (userConn p) DrawGame
-            notify (userConn p') DrawGame
+        draw = atomically $ both $ \p -> notify (userConn p) DrawGame
 
         win _ = atomically $ do
             notify (userConn p) LostGame
             notify (userConn p') WonGame
 
-        sendBoard = atomically $ do
-            notify (userConn p)  (GameBoard b)
-            notify (userConn p') (GameBoard b)
+        sendBoard = atomically $ both $ \p -> notify (userConn p)  (GameBoard b)
 
+    both :: Monad m => (forall t.Player t -> m ()) -> m ()
+    both op = op px >> op po
+
+    requeue :: Player t -> IO ()
+    requeue p = void $ forkIO $ do
+        yes <- request (userConn p) AskNewGame
+        when yes $ atomically $ writeTChan queue $ stripSide p
 
 main :: IO ()
 main = do
