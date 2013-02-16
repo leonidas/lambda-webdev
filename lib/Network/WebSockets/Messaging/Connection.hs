@@ -47,10 +47,20 @@ data Connection = Connection
     , reqMap       :: !(TVar (IntMap (TMVar Json.Value)))
     }
 
-newtype Future a = Future (TMVar a)
+data Future a = Future !(TMVar a) !(STM Bool)
 
 get :: Future a -> STM a
-get (Future var) = readTMVar var
+get (Future var _) = readTMVar var
+
+foldFuture :: r -> (a -> r) -> Future a -> STM r
+foldFuture discHandler resHandler (Future var disc) =
+    fmap resHandler (readTMVar var) `orElse` do
+        d <- disc
+        if d
+            then return discHandler
+            else retry
+
+
 
 newConnection :: STM Connection
 newConnection = Connection
@@ -85,7 +95,7 @@ requestAsync conn@(Connection {..}) !req = do
                 atomically $! send conn $! ProtocolError $! T.pack msg
                 error "malformed response"
 
-    return $ Future fut
+    return $ Future fut (readTVar disconnected)
 
 
 request :: (Message req, FromJSON resp) => Connection -> req -> IO resp

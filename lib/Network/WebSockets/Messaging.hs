@@ -11,6 +11,7 @@ module Network.WebSockets.Messaging
     , Message(..)
     , Future
     , get
+    , foldFuture
     ) where
 
 import Network.WebSockets.Messaging.Connection
