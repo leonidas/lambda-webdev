@@ -24,7 +24,12 @@ import Control.Concurrent.STM
 
 data NameNotification = Name String deriving Generic
 
+data ServerRequest
+    = AskName
+    deriving Generic
+
 instance Message NameNotification
+instance Message ServerRequest
 
 app :: Application
 app = staticApp $ (defaultFileServerSettings "public") { ssMaxAge = MaxAgeSeconds 1 }
@@ -48,7 +53,8 @@ initWSApp = do
             return ()
 
 matchMaker :: TChan Connection -> IO ()
-matchMaker = undefined
+matchMaker queue = do
+    undefined
 
 main :: IO ()
 main = do
