@@ -12,18 +12,20 @@ define (require) ->
   ko  = require 'knockout'
   msg = require 'messaging'
 
-  conn = msg.connect("ws://localhost:8000/")
-
   class GameViewModel
-    constructor: () ->
+    constructor: (@conn) ->
       @name = ko.observable()
-      @view = ko.observable("enterName")
+      @view = ko.observable()
+      @board = ko.observable()
+      @conn.onNotify "GameBoard", (board) =>
+        console.log "Board:", board
+        @board board
 
     enterName: () ->
-      conn.notify "Name", @name()
+      @conn.notify "Name", @name()
       false
 
-  vmo = new GameViewModel()
+  vmo = new GameViewModel(msg.connect("ws://localhost:8000/"))
 
   ko.applyBindings vmo
 
