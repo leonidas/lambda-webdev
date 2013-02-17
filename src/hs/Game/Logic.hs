@@ -71,10 +71,9 @@ makeMove (Board mp) move
         fullDiagonal = match (1, 1) (1, 1) <|> match (3, 1) (-1, 1)
 
         match (sx, sy) (dx, dy) = go (3 :: Int) sx sy where
-            go 0 _ _ = Just $ Win piece
-            go n x y
-                | lookup' (x, y) == Just piece = go (n-1) (x+dx) (y+dy)
-                | otherwise                    = Nothing
+            go _ x y | lookup' (x, y) /= Just piece = Nothing
+            go 1 _ _ = Just $ Win piece
+            go n x y = go (n-1) (x+dx) (y+dy)
 
         lookup' (x,y) = Map.lookup (Coord x, Coord y) mp'
 
