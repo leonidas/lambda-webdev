@@ -70,7 +70,7 @@ makeMove (Board mp) move
         fullColumn   = msum [match (c, 1) (0, 1) | c <- [1..3]]
         fullDiagonal = match (1, 1) (1, 1) <|> match (3, 1) (-1, 1)
 
-        match (sx, sy) (dx, dy) = go (2 :: Int) sx sy where
+        match (sx, sy) (dx, dy) = go (3 :: Int) sx sy where
             go 0 _ _ = Just $ Win piece
             go n x y
                 | lookup' (x, y) == Just piece = go (n-1) (x+dx) (y+dy)
