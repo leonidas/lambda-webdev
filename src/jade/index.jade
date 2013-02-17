@@ -16,6 +16,11 @@ html
       #waiting(data-bind='if: view() == "waiting"')
         h1 Waiting for an opponent...
 
+      #disconnected(data-bind='if: view() == "disconnected"')
+        h1 Disconnected from the game
+
+        button(data-bind='click: reconnect') Reconnect
+
       #game(data-bind='if: view() == "game"')
         h1
           span(data-bind='text: name')
@@ -25,7 +30,7 @@ html
         table.board
           tbody(data-bind='foreach: board')
             tr(data-bind='foreach: $data')
-              td(data-bind='text: $data')
+              td(data-bind='text: $data.value, click: $root.makeMove($data)')
 
         button Play again
 

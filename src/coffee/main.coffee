@@ -13,21 +13,54 @@ define (require) ->
   msg = require 'messaging'
 
   class GameViewModel
-    constructor: (@conn) ->
+    constructor: () ->
       @name         = ko.observable()
-      @view         = ko.observable("game")
+      @view         = ko.observable("enterName")
       @opponentName = ko.observable()
+
       @constructBoard()
 
       @nameRequest = null
+      @moveRequest = null
+
+      @reconnect()
 
       @conn.onRequest "AskName", (data, callback) =>
         n = @name()
         if n? then callback n else @nameRequest = callback
+        return
 
       @conn.onNotify "GameBoard", (board) =>
-        console.log "Board:", board
-        #@board board
+        @updateBoard board
+        return
+
+      @conn.onNotify "FoundOpponent", (name) =>
+        @opponentName name
+        @view "game"
+        return
+
+      @conn.onRequest "AskMove", (data, callback) =>
+        @moveRequest = callback
+        return
+
+      @conn.onDisconnect =>
+        @view "disconnected"
+
+    reconnect: () ->
+      @conn = msg.connect("ws://localhost:8000/")
+      return
+
+    clearBoard: () ->
+      for row in @board()
+        for col in row
+          col.value null
+      return
+
+    updateBoard: (board) ->
+      @clearBoard()
+      for [[col, row], piece] in board
+        @board()[row]()[col].value piece
+      return
 
     constructBoard: () ->
       @board = ko.observableArray()
@@ -35,7 +68,16 @@ define (require) ->
         row = ko.observableArray()
         @board().push row
         for c in [1..3]
-          row().push ko.observable()
+          row().push
+            row: r
+            col: c
+            value: ko.observable(null)
+      return
+
+    makeMove: (cell) -> () ->
+      return if not @moveRequest?
+      @moveRequest [cell.col, cell.row]
+      @moveRequest = null
       return
 
     enterName: () ->
@@ -49,7 +91,7 @@ define (require) ->
 
       false
 
-  vmo = new GameViewModel(msg.connect("ws://localhost:8000/"))
+  vmo = new GameViewModel()
 
   ko.applyBindings vmo
 
