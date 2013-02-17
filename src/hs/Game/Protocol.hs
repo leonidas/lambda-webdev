@@ -5,8 +5,6 @@
 
 module Game.Protocol where
 
-import Control.Applicative ((<$>))
-
 import Data.Aeson (FromJSON(..), ToJSON(..))
 import qualified Data.Aeson as JSON
 import qualified Data.Map as Map
@@ -41,6 +39,7 @@ instance FromJSON GameResult where
     parseJSON (JSON.String "won")  = return WonGame
     parseJSON (JSON.String "lost") = return LostGame
     parseJSON (JSON.String "draw") = return DrawGame
+    parseJSON _ = fail "Invalid game result"
 
 instance ToJSON Coord where
     toJSON (Coord i) = toJSON i
