@@ -14,9 +14,18 @@ html
             input(type='text', data-bind='value: name')
 
       #waiting(data-bind='if: view() == "waiting"')
-        h1 Odotetaan vastapelaajaa
+        h1 Waiting for an opponent...
 
       #game(data-bind='if: view() == "game"')
+        h1
+          span(data-bind='text: name')
+          = " vs "
+          span(data-bind='text: opponentName')
+
         table.board
+          tbody(data-bind='foreach: board')
+            tr(data-bind='foreach: $data')
+              td(data-bind='text: $data')
+
         button Play again
 
