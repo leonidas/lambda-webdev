@@ -35,6 +35,10 @@ library
 executable lambda-webdev
   main-is:           Main.hs
   hs-source-dirs:    src/hs
+  other-modules: Game.Logic
+    , Game.Protocol
+    , Game.Server
+    , Game.Types
 
   build-depends: lambda-webdev
     , base
