@@ -11,7 +11,7 @@ import qualified Network.WebSockets as WS
 
 import Control.Concurrent.STM (STM, newTChanIO, atomically, writeTChan, TChan, readTChan, readTVar)
 import Control.Concurrent (forkIO)
-import Control.Monad (void, liftM2)
+import Control.Monad (void, liftM2, forever)
 
 import Network.WebSockets.Messaging (onConnect, request, notify, disconnected)
 
@@ -40,7 +40,7 @@ initWSApp = do
                 writeTChan queue $ User name conn
 
 matchMaker :: TChan NewPlayer -> IO ()
-matchMaker queue = do
+matchMaker queue = forever $ do
     (p1,p2) <- atomically $ liftM2 (,) (nextConnected queue) (nextConnected queue)
     void $ forkIO $ playGame queue $ assignSides p1 p2
 

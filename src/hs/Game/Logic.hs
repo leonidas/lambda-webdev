@@ -19,7 +19,7 @@ import Network.WebSockets.Messaging (Future, foldFuture, requestAsync, notify, r
 import Unsafe.Coerce
 
 import Game.Types
-import Game.Protocol (ServerRequest(..))
+import Game.Protocol (ServerRequest(..), GameResult(..))
 
 type NewPlayer    = User Nothing
 type Player piece = User (Just piece)
@@ -79,11 +79,7 @@ makeMove (Board mp) move
         lookup' (x,y) = Map.lookup (Coord x, Coord y) mp'
 
 newBoard :: Board
-newBoard = Board $ Map.fromList
-    [ ((Coord 1, Coord 1), X)
-    , ((Coord 2, Coord 1), O)
-    ]
--- newBoard = Board $ Map.empty
+newBoard = Board $ Map.empty
 
 playGame :: TChan NewPlayer -> (Player X, Player O) -> IO ()
 playGame queue (px, po) = start >> play >> both requeue where
@@ -99,16 +95,18 @@ playGame queue (px, po) = start >> play >> both requeue where
         turn f = loop where
             loop        = getMove p >>= resolveMove
             resolveMove = join . atomically . foldFuture disconnect nextTurn
-            disconnect  = atomically $ notify (userConn p') WonGame
+            disconnect  = atomically $ notifyResult p' WonGame
             nextTurn m  = maybe loop (go p' p) (f m)
 
-        draw = atomically $ both $ \u -> notify (userConn u) DrawGame
+        draw = atomically $ both $ \u -> notifyResult u DrawGame
 
         win _ = atomically $ do
-            notify (userConn p) LostGame
-            notify (userConn p') WonGame
+            notifyResult p  LostGame
+            notifyResult p' WonGame
 
         sendBoard = atomically $ both $ \u -> notify (userConn u) (GameBoard b)
+
+    notifyResult u = notify (userConn u) . GameOver
 
     both :: Monad m => (forall t.Player t -> m ()) -> m ()
     both op = op px >> op po

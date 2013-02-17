@@ -5,6 +5,8 @@
 
 module Game.Protocol where
 
+import Control.Applicative ((<$>))
+
 import Data.Aeson (FromJSON(..), ToJSON(..))
 import qualified Data.Aeson as JSON
 import qualified Data.Map as Map
@@ -20,15 +22,25 @@ data ServerRequest
     | AskNewGame
     | FoundOpponent String
     | GameBoard Board
-    | WonGame
-    | LostGame
-    | DrawGame
+    | GameOver GameResult
     deriving Generic
+
+data GameResult = WonGame | LostGame | DrawGame
 
 instance Message ServerRequest
 
 deriving instance ToJSON (Move t)
 deriving instance FromJSON (Move t)
+
+instance ToJSON GameResult where
+    toJSON WonGame  = "won"
+    toJSON LostGame = "lost"
+    toJSON DrawGame = "draw"
+
+instance FromJSON GameResult where
+    parseJSON (JSON.String "won")  = return WonGame
+    parseJSON (JSON.String "lost") = return LostGame
+    parseJSON (JSON.String "draw") = return DrawGame
 
 instance ToJSON Coord where
     toJSON (Coord i) = toJSON i
@@ -50,19 +62,8 @@ instance FromJSON Piece where
     parseJSON _ = fail "invalid Piece"
 
 instance ToJSON Board where
-    toJSON (Board mp) = toJSON $
-        [ [Map.lookup (Coord r, Coord c) mp| r <- [1..3]]
-        | c <- [1..3]
-        ]
+    toJSON (Board mp) = toJSON $ Map.assocs mp
 
 instance FromJSON Board where
-    parseJSON js = do
-        rows <- parseJSON js
-        let assocs = do
-                (r, row) <- zip [1..3] rows
-                (c, piece) <- zip [1..3] row
-                case piece of
-                    Just p -> return ((Coord r, Coord c), p)
-                    _      -> []
-        return $ Board $ Map.fromList assocs
+    parseJSON = fmap (Board . Map.fromList) . parseJSON
 
