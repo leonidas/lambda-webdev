@@ -84,13 +84,13 @@ data User (piece :: Maybe Piece) = User
 
 data Game turn = Game
     { gameBoard :: Board
-    , gameState :: GameState turn
+    , gameStatus :: GameStatus turn
     }
 
-data GameState (turn :: Piece) where
-    Turn  :: (Move turn -> Maybe (Game (Other turn))) -> GameState turn
-    Draw  :: GameState a
-    Win   :: Piece -> GameState a
+data GameStatus (turn :: Piece) where
+    Turn  :: (Move turn -> Maybe (Game (Other turn))) -> GameStatus turn
+    Draw  :: GameStatus a
+    Win   :: Piece -> GameStatus a
 
 type NewPlayer    = User Nothing
 type Player piece = User (Just piece)
@@ -99,7 +99,7 @@ foldGameState
     :: ((Move turn -> Maybe (Game (Other turn))) -> r)
     -> r
     -> (Piece -> r)
-    -> GameState turn
+    -> GameStatus turn
     -> r
 foldGameState handleTurn handleDraw handleWin s = case s of
     Turn f -> handleTurn f
