@@ -8,18 +8,41 @@
 module Game.Server (initWSApp, app) where
 
 import Network.Wai (Application)
-import Network.Wai.Application.Static (staticApp, defaultFileServerSettings, ssMaxAge)
+import Network.Wai.Application.Static
+    ( staticApp
+    , defaultFileServerSettings
+    , ssMaxAge
+    )
+
 import WaiAppStatic.Types (MaxAge(..))
 import qualified Network.WebSockets as WS
 
-import Control.Concurrent.STM (STM, newTChanIO, atomically, writeTChan, TChan, readTChan, readTVar)
+import Control.Concurrent.STM
+    ( STM
+    , newTChanIO
+    , atomically
+    , writeTChan
+    , TChan
+    , readTChan
+    , readTVar
+    )
+
 import Control.Concurrent (forkIO)
 import Control.Monad (void, liftM2, forever, join, when)
 
-import Network.WebSockets.Messaging (onConnect, request, notify, disconnected, requestAsync, Future, foldFuture)
+import Network.WebSockets.Messaging
+    ( onConnect
+    , request
+    , notify
+    , disconnected
+    , requestAsync
+    , Future
+    , foldFuture
+    )
 
 import Game.Protocol (ServerRequest(..), GameResult(..))
-import Game.Logic (newGame)
+import Game.Logic (newGame, Game(..), foldGameStatus)
+import Game.Move (requestMove)
 import Game.Types
 
 type NewPlayer    = User Nothing
@@ -55,9 +78,6 @@ nextConnected queue = do
         then nextConnected queue
         else return u
 
-getMove :: Player piece -> IO (Future (Move piece))
-getMove (User{..}) = requestAsync userConn AskMove
-
 type Cyclic a b = (a ~ Other b, b ~ Other a)
 
 playGame :: TChan NewPlayer -> (Player X, Player O) -> IO ()
@@ -72,7 +92,7 @@ playGame queue (px, po) = start >> play >> both requeue where
     go :: Cyclic t t' => Player t -> Player t' -> Game t -> IO ()
     go p p' (Game b st) = sendBoard >> foldGameStatus turn draw win st where
         turn f = loop where
-            loop        = getMove p >>= resolveMove
+            loop        = requestMove p >>= resolveMove
             resolveMove = join . atomically . foldFuture disconnect nextTurn
             disconnect  = atomically $ notifyResult p' WonGame
             nextTurn m  = maybe loop (go p' p) (f m)

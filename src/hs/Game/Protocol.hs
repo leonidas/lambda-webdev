@@ -12,7 +12,7 @@ import qualified Data.Map as Map
 import Network.WebSockets.Messaging (Message)
 import GHC.Generics (Generic)
 
-import Game.Types (Board(..), Coord(..), Piece(..), Move(..))
+import Game.Types (Board(..), Coord(..), Piece(..))
 
 data ServerRequest
     = AskName
@@ -26,9 +26,6 @@ data ServerRequest
 data GameResult = WonGame | LostGame | DrawGame
 
 instance Message ServerRequest
-
-deriving instance ToJSON (Move t)
-deriving instance FromJSON (Move t)
 
 instance ToJSON GameResult where
     toJSON WonGame  = "won"

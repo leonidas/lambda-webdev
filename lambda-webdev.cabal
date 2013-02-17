@@ -41,6 +41,7 @@ executable lambda-webdev
   other-modules: Game.Logic
     , Game.Protocol
     , Game.Server
+    , Game.Move
     , Game.Types
 
   build-depends: lambda-webdev

@@ -21,21 +21,6 @@ type family Other (p :: Piece) :: Piece
 type instance Other X = O
 type instance Other O = X
 
-newtype Move (piece :: Piece) = Move Position
-
-class MoveAssoc (p :: Piece) where
-    moveAssoc :: Move p -> (Position, Piece)
-    moveAssoc m@(Move pos) = (pos, movePiece m)
-
-    movePiece :: Move p -> Piece
-
-instance MoveAssoc X where
-    movePiece _ = X
-
-instance MoveAssoc O where
-    movePiece _ = O
-
-
 data User (piece :: Maybe Piece) = User
     { userName :: String
     , userConn :: Connection
@@ -46,27 +31,5 @@ assignSides pl1 pl2 = (unsafeCoerce pl1, unsafeCoerce pl2)
 
 stripSide :: User (Just t) -> User Nothing
 stripSide = unsafeCoerce
-
-
-data Game turn = Game Board (GameStatus turn)
-
-data GameStatus (turn :: Piece) where
-    Turn  :: ProcessMove turn -> GameStatus turn
-    Draw  :: GameStatus a
-    Win   :: Piece -> GameStatus a
-
-type ProcessMove turn = Move turn -> Maybe (Game (Other turn))
-
-
-foldGameStatus
-    :: (ProcessMove turn -> r)
-    -> r
-    -> (Piece -> r)
-    -> GameStatus turn
-    -> r
-foldGameStatus handleTurn handleDraw handleWin s = case s of
-    Turn f -> handleTurn f
-    Draw   -> handleDraw
-    Win p  -> handleWin p
 
 

@@ -5,7 +5,12 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Game.Logic (newGame) where
+module Game.Logic
+    ( newGame
+    , foldGameStatus
+    , Game(..)
+    , GameStatus
+    ) where
 
 import Control.Applicative ((<|>), (<$>))
 import Control.Monad (msum)
@@ -13,6 +18,27 @@ import Control.Monad (msum)
 import qualified Data.Map as Map
 
 import Game.Types
+import Game.Move (Move, MoveAssoc(..))
+
+data Game turn = Game Board (GameStatus turn)
+
+data GameStatus (turn :: Piece) where
+    Turn  :: ProcessMove turn -> GameStatus turn
+    Draw  :: GameStatus a
+    Win   :: Piece -> GameStatus a
+
+type ProcessMove turn = Move turn -> Maybe (Game (Other turn))
+
+foldGameStatus
+    :: (ProcessMove turn -> r)
+    -> r
+    -> (Piece -> r)
+    -> GameStatus turn
+    -> r
+foldGameStatus handleTurn handleDraw handleWin s = case s of
+    Turn f -> handleTurn f
+    Draw   -> handleDraw
+    Win p  -> handleWin p
 
 type CyclicMove turn =
     ( Other (Other turn) ~ turn
