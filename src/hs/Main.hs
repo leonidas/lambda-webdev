@@ -48,8 +48,6 @@ maybeIf p a
     | p         = Just a
     | otherwise = Nothing
 
-data NameNotification = Name String deriving Generic
-
 data ServerRequest
     = AskName
     | AskMove
@@ -60,6 +58,8 @@ data ServerRequest
     | LostGame
     | DrawGame
     deriving Generic
+
+instance Message ServerRequest
 
 data Board = Board (Map Position Piece)
 
@@ -193,8 +193,6 @@ instance FromJSON Board where
                     _      -> []
         return $ Board $ Map.fromList assocs
 
-instance Message NameNotification
-instance Message ServerRequest
 
 app :: Application
 app = staticApp $ (defaultFileServerSettings "public") { ssMaxAge = MaxAgeSeconds 1 }
