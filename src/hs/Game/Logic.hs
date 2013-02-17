@@ -12,7 +12,6 @@ import Control.Monad (msum, void, join, when)
 import Control.Concurrent.STM (TChan, atomically, writeTChan)
 import Control.Concurrent (forkIO)
 
-import Data.Maybe (fromMaybe)
 import qualified Data.Map as Map
 
 import Network.WebSockets.Messaging (Future, foldFuture, requestAsync, notify, request)

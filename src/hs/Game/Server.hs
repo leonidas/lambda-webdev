@@ -28,7 +28,6 @@ app = staticApp $ (defaultFileServerSettings "public")
 
 initWSApp :: IO (WS.Request -> WS.WebSockets WS.Hybi00 ())
 initWSApp = do
-
     queue <- newTChanIO
 
     void $ forkIO $ matchMaker queue
@@ -39,8 +38,6 @@ initWSApp = do
             name <- request conn AskName
             atomically $ do
                 writeTChan queue $ User name conn
-
-            return ()
 
 matchMaker :: TChan NewPlayer -> IO ()
 matchMaker queue = do
