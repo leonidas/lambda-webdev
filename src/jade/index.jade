@@ -27,10 +27,17 @@ html
           = " vs "
           span(data-bind='text: opponentName')
 
+        h2(data-bind='visible: moveRequest') It's your turn
+        h2(data-bind='visible: !moveRequest()') Opponent's turn
+
         table.board
           tbody(data-bind='foreach: board')
             tr(data-bind='foreach: $data')
               td(data-bind='text: $data.value, click: $root.makeMove($data)')
+
+        h1.victory(data-bind='visible: result() == "won"') You won!
+        h1.loss(data-bind='visible: result() == "lost"') You lost!
+        h1.draw(data-bind='visible: result() == "draw"') It's a draw!
 
         button(data-bind='visible: newGameRequest, click: playAgain') Play again
 

@@ -17,6 +17,7 @@ define (require) ->
       @name         = ko.observable()
       @view         = ko.observable("enterName")
       @opponentName = ko.observable()
+      @result       = ko.observable()
 
       @constructBoard()
 
@@ -48,22 +49,29 @@ define (require) ->
         @newGameRequest callback
         return
 
+      @conn.onNotify "GameOver", (result) =>
+        @result result
+        return
+
       @conn.onDisconnect =>
         @view "disconnected"
 
     playAgain: () ->
       @view "waiting"
+      @result null
+      @opponentName null
       @newGameRequest() true
       @newGameRequest null
       return
 
     reconnect: () ->
       @conn = msg.connect("ws://localhost:8000/")
+      @view(if @name() then "waiting" else "enterName")
       return
 
     clearBoard: () ->
       for row in @board()
-        for col in row
+        for col in row()
           col.value null
       return
 
