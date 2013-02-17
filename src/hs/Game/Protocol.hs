@@ -17,12 +17,12 @@ import Game.Types (Board(..), Coord(..), Piece(..), Move(..))
 data ServerRequest
     = AskName
     | AskMove
-    | AskNewGame
-    | FoundOpponent String
-    | GameBoard Board
-    | WonGame
+    | AskNewGame
+    | FoundOpponent String
+    | GameBoard Board
+    | WonGame
     | LostGame
-    | DrawGame
+    | DrawGame
     deriving Generic
 
 instance Message ServerRequest
@@ -37,7 +37,7 @@ instance FromJSON Coord where
     parseJSON js = do
         i <- parseJSON js
         if (i >= 1 && i <= 3)
-            then return $ Coord i
+            then return $ Coord i
             else fail "invalid coordinate"
 
 instance ToJSON Piece where
@@ -51,7 +51,7 @@ instance FromJSON Piece where
 
 instance ToJSON Board where
     toJSON (Board mp) = toJSON $
-        [ [Map.lookup (Coord r, Coord c) mp| r <- [1..3]]
+        [ [Map.lookup (Coord r, Coord c) mp| r <- [1..3]]
         | c <- [1..3]
         ]
 
@@ -64,5 +64,5 @@ instance FromJSON Board where
                 case piece of
                     Just p -> return ((Coord r, Coord c), p)
                     _      -> []
-        return $ Board $ Map.fromList assocs
+        return $ Board $ Map.fromList assocs
 

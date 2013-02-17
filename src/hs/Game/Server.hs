@@ -31,7 +31,7 @@ initWSApp = do
 
     queue <- newTChanIO
 
-    void $ forkIO $ matchMaker queue
+    void $ forkIO $ matchMaker queue
 
     return $ \req -> do
         WS.acceptRequest req
@@ -44,8 +44,8 @@ initWSApp = do
 
 matchMaker :: TChan NewPlayer -> IO ()
 matchMaker queue = do
-    (p1,p2) <- atomically $ liftM2 (,) (nextConnected queue) (nextConnected queue)
-    void $ forkIO $ playGame queue $ assignSides p1 p2
+    (p1,p2) <- atomically $ liftM2 (,) (nextConnected queue) (nextConnected queue)
+    void $ forkIO $ playGame queue $ assignSides p1 p2
 
 nextConnected :: TChan NewPlayer -> STM NewPlayer
 nextConnected queue = do

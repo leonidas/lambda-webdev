@@ -46,7 +46,7 @@ instance (GToJSON a, GToJSON b) => GToJSON (a :+: b) where
     gToJSON (R1 b) = gToJSON b
 
 instance (GListFields a, GListFields b) => GToJSON (a :*: b) where
-    gToJSON (a :*: b) = object $ gListFields a ++ gListFields b
+    gToJSON (a :*: b) = object $ gListFields a ++ gListFields b
 
 instance (ToJSON a) => GToJSON (M1 S NoSelector (K1 k a)) where
     gToJSON (M1 (K1 a)) = toJSON a
@@ -72,7 +72,7 @@ instance GFromJSON a => GFromJSON (M1 D d a) where
 instance (Constructor c, GFromJSON a) => GFromJSON (M1 C c a) where
     gParseJSON c (Object o) = do
         String typ <- o .: "msg"
-        guard $ typ == (fromString $ conName c)
+        guard $ typ == (fromString $ conName c)
         dat <- o .: "data"
         fmap M1 (gParseJSON undefined dat)
 
@@ -86,7 +86,7 @@ instance (GFromJSON a, GFromJSON b) => GFromJSON (a :*: b) where
     gParseJSON _ js = do
         a <- gParseJSON undefined js
         b <- gParseJSON undefined js
-        return $ a :*: b
+        return $ a :*: b
 
 instance FromJSON a => GFromJSON (M1 S NoSelector (K1 k a)) where
     gParseJSON _ = fmap (M1 . K1) . parseJSON
@@ -116,14 +116,14 @@ test = msgToJSON $ Test "foobar"
 
 data TestMessage = TestMessage deriving (Generic, Show)
 data TestMessage2 = TestMessage2 { foo :: Int, bar :: String } deriving (Generic, Show)
-data Test3 = Test3A { foo3 :: Int } | Test3B { bar3 :: String } deriving (Generic, Show)
+data Test3 = Test3A { foo3 :: Int } | Test3B { bar3 :: String } deriving (Generic, Show)
 
 instance Message TestMessage where
 instance Message TestMessage2 where
 instance Message Test3 where
 
-test = msgFromJSON $ msgToJSON TestMessage :: Result TestMessage
-test2 = msgFromJSON $ msgToJSON $ TestMessage2 5 "foo" :: Result TestMessage2
-test3a = msgFromJSON $ msgToJSON $ Test3A 10 :: Result Test3
-test3b = msgFromJSON $ msgToJSON $ Test3B "bar" :: Result Test3
+test = msgFromJSON $ msgToJSON TestMessage :: Result TestMessage
+test2 = msgFromJSON $ msgToJSON $ TestMessage2 5 "foo" :: Result TestMessage2
+test3a = msgFromJSON $ msgToJSON $ Test3A 10 :: Result Test3
+test3b = msgFromJSON $ msgToJSON $ Test3B "bar" :: Result Test3
 -}

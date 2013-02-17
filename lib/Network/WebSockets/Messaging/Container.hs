@@ -15,10 +15,10 @@ data Container
     | ProtocolDebug !Text
     | Request !ReqId !Value
     | Response !ReqId !Value
-    | Notification !Value
+    | Notification !Value
 
 instance ToJSON Container where
-    toJSON c = toJSON $ case c of
+    toJSON c = toJSON $ case c of
         ProtocolError msg     -> [String "error",    toJSON msg]
         ProtocolDebug msg     -> [String "debug",    toJSON msg]
         Request rqId payload  -> [String "request",  toJSON rqId, payload]
@@ -31,6 +31,6 @@ instance FromJSON Container where
         [String "debug", msg]              -> ProtocolDebug <$> parseJSON msg
         [String "request", rqId, payload]  -> Request       <$> parseJSON rqId <*> pure payload
         [String "response", rqId, payload] -> Response      <$> parseJSON rqId <*> pure payload
-        [String "notify", payload]         -> return $ Notification payload
+        [String "notify", payload]         -> return $ Notification payload
         _                                  -> fail "invalid container"
 

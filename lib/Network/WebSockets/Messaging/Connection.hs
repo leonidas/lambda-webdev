@@ -77,12 +77,12 @@ requestAsync conn@(Connection {..}) !req = do
     resp <- newEmptyTMVarIO
     fut  <- newEmptyTMVarIO
 
-    void $ forkIO $ do
+    void $ forkIO $ do
 
-        rqId <- atomically $ do
+        rqId <- atomically $ do
             rqId <- nextReqId conn
             modifyTVar' reqMap $! IntMap.insert rqId resp
-            send conn $! Request rqId $! msgToJSON req
+            send conn $! Request rqId $! msgToJSON req
             return rqId
 
         js <- atomically $ do
@@ -92,23 +92,23 @@ requestAsync conn@(Connection {..}) !req = do
         case fromJSON js of
             Json.Success dat -> atomically $! putTMVar fut $! dat
             Json.Error msg   -> do
-                atomically $! send conn $! ProtocolError $! T.pack msg
+                atomically $! send conn $! ProtocolError $! T.pack msg
                 error "malformed response"
 
-    return $ Future fut (readTVar disconnected)
+    return $ Future fut (readTVar disconnected)
 
 
 request :: (Message req, FromJSON resp) => Connection -> req -> IO resp
 request conn@(Connection {..}) !req = do
-    rqId <- atomically $ do
+    rqId <- atomically $ do
         rqId' <- readTVar reqId
         writeTVar reqId $! rqId' + 1
         return rqId'
 
     resp <- newEmptyTMVarIO
-    atomically $ do
+    atomically $ do
         modifyTVar' reqMap $! IntMap.insert rqId resp
-        send conn $! Request rqId $! msgToJSON req
+        send conn $! Request rqId $! msgToJSON req
 
     js <- atomically $ do
         modifyTVar' reqMap $! IntMap.delete rqId
@@ -117,7 +117,7 @@ request conn@(Connection {..}) !req = do
     case fromJSON js of
         Json.Success dat -> return dat
         Json.Error msg   -> do
-            atomically $! send conn $! ProtocolError $! T.pack msg
+            atomically $! send conn $! ProtocolError $! T.pack msg
             error "malformed response"
 
 notify :: Message ntfy => Connection -> ntfy -> STM ()
@@ -149,7 +149,7 @@ onNotify conn@(Connection{..}) !handler = do
     sid <- nextSubId conn
     modifyTVar' notifySubs (IntMap.insert sid handler') where
         handler' js = case msgFromJSON js of
-            Json.Success ntfy -> return $! handler ntfy
+            Json.Success ntfy -> return $! handler ntfy
             Error _           -> retry
 
 onDisconnect :: Connection -> STM () -> STM ()
@@ -167,7 +167,7 @@ sendJson = sendTextData . encode
 
 sinkJson :: TextProtocol p => Sink p -> Json.Value -> IO ()
 sinkJson sink = sendSink sink . DataMessage . Text . encode
--- sinkJson sink js = sendSink sink . DataMessage . Text . encode $ (trace (show js) js)
+-- sinkJson sink js = sendSink sink . DataMessage . Text . encode $ (trace (show js) js)
 
 untilClosed :: Closable TQueue a -> (a -> STM b) -> (b -> IO c) -> IO ()
 untilClosed chan handler after = loop where
@@ -180,36 +180,36 @@ dispatch conn@(Connection {..}) !c = case c of
     Request rqId js  -> do
         handler <- atomically $ do
             subs <- readTVar requestSubs
-            let trySubs = foldr mplus retry $ map ($ js) $ IntMap.elems subs
+            let trySubs = foldr mplus retry $ map ($ js) $ IntMap.elems subs
             fmap Just trySubs `orElse` return Nothing
 
         void $ forkIO $ maybe invalidRequest respond handler
 
         where
-            invalidRequest = atomically . send conn
+            invalidRequest = atomically . send conn
                 $ ProtocolError "unrecognized request"
 
-            respond h = h >>= atomically . send conn . Response rqId
+            respond h = h >>= atomically . send conn . Response rqId
 
     Notification js -> do
         handler <- atomically $ do
             subs <- readTVar notifySubs
-            let trySubs = foldr mplus retry $ map ($ js) $ IntMap.elems subs
+            let trySubs = foldr mplus retry $ map ($ js) $ IntMap.elems subs
             fmap Just trySubs `orElse` return Nothing
 
         void $ forkIO $ fromMaybe noHandler handler
 
         where
-            noHandler = atomically . send conn
+            noHandler = atomically . send conn
                 $ ProtocolDebug "ignored notification"
 
-    Response rqId js -> atomically $ do
+    Response rqId js -> atomically $ do
         h <- IntMap.lookup rqId <$> readTVar reqMap
         case h of
             Nothing  -> responseIgnored
             Just var -> putTMVar var js
         where
-            responseIgnored = send conn $ ProtocolDebug "ignored response"
+            responseIgnored = send conn $ ProtocolDebug "ignored response"
 
     _ -> return () -- TODO: print/log error?
 
@@ -232,9 +232,9 @@ onConnect handler = do
     sink <- getSink
 
     liftIO $ do
-        void . forkIO $ untilClosed outbox return (sinkJson sink)
+        void . forkIO $ untilClosed outbox return (sinkJson sink)
             `catch` handleWriteError
 
-        void . forkIO $ handler conn
+        void . forkIO $ handler conn
 
     catchWsError readLoop handleReadError

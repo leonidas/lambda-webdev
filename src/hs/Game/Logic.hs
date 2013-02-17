@@ -36,7 +36,7 @@ type CyclicMove turn =
 maybeIf :: Bool -> a -> Maybe a
 maybeIf p a
     | p         = Just a
-    | otherwise = Nothing
+    | otherwise = Nothing
 
 getMove :: Player piece -> IO (Future (Move piece))
 getMove (User{..}) = requestAsync userConn AskMove
@@ -48,13 +48,13 @@ stripSide :: Player t -> NewPlayer
 stripSide = unsafeCoerce
 
 newGame :: Game X
-newGame = Game newBoard $ Turn $ makeMove newBoard where
+newGame = Game newBoard $ Turn $ makeMove newBoard where
 
 makeMove :: CyclicMove turn => Board -> Move turn -> Maybe (Game (Other turn))
 makeMove (Board mp) move
     | pos `Map.member` mp = Nothing
     | x < 1 || x > 3 || y < 1 || y > 3 = Nothing
-    | otherwise = Game board' <$> (gameOver <|> nextTurn)
+    | otherwise = Game board' <$> (gameOver <|> nextTurn)
     where
         assoc@(pos, piece) = moveAssoc move
         (Coord x, Coord y) = pos
@@ -68,7 +68,7 @@ makeMove (Board mp) move
         victory  = fullRow <|> fullColumn <|> fullDiagonal
 
         fullRow      = msum [match (1, r) (1, 0) | r <- [1..3]]
-        fullColumn   = msum [match (c, 1) (0, 1) | c <- [1..3]]
+        fullColumn   = msum [match (c, 1) (0, 1) | c <- [1..3]]
         fullDiagonal = match (1, 1) (1, 1) <|> match (3, 1) (-1, 1)
 
         match (sx, sy) (dx, dy) = go (2 :: Int) sx sy where
@@ -80,18 +80,18 @@ makeMove (Board mp) move
         lookup' (x,y) = Map.lookup (Coord x, Coord y) mp'
 
 newBoard :: Board
-newBoard = Board $ Map.fromList
+newBoard = Board $ Map.fromList
     [ ((Coord 1, Coord 1), X)
     , ((Coord 2, Coord 1), O)
     ]
--- newBoard = Board $ Map.empty
+-- newBoard = Board $ Map.empty
 
 playGame :: TChan NewPlayer -> (Player X, Player O) -> IO ()
 playGame queue (px, po) = start >> play >> both requeue where
 
-    start = atomically $ do
-        notify (userConn px) $ FoundOpponent $ userName po
-        notify (userConn po) $ FoundOpponent $ userName px
+    start = atomically $ do
+        notify (userConn px) $ FoundOpponent $ userName po
+        notify (userConn po) $ FoundOpponent $ userName px
 
     play = go px po newGame
 
@@ -100,10 +100,10 @@ playGame queue (px, po) = start >> play >> both requeue where
         turn f = loop where
             loop        = getMove p >>= resolveMove
             resolveMove = join . atomically . foldFuture disconnect nextTurn
-            disconnect  = atomically $ notify (userConn p') WonGame
+            disconnect  = atomically $ notify (userConn p') WonGame
             nextTurn m  = maybe loop (go p' p) (f m)
 
-        draw = atomically $ both $ \u -> notify (userConn u) DrawGame
+        draw = atomically $ both $ \u -> notify (userConn u) DrawGame
 
         win _ = atomically $ do
             notify (userConn p) LostGame
@@ -115,6 +115,6 @@ playGame queue (px, po) = start >> play >> both requeue where
     both op = op px >> op po
 
     requeue :: Player t -> IO ()
-    requeue p = void $ forkIO $ do
+    requeue p = void $ forkIO $ do
         yes <- request (userConn p) AskNewGame
-        when yes $ atomically $ writeTChan queue $ stripSide p
+        when yes $ atomically $ writeTChan queue $ stripSide p
