@@ -35,8 +35,6 @@ import Network.WebSockets.Messaging
     , request
     , notify
     , disconnected
-    , requestAsync
-    , Future
     , foldFuture
     )
 
