@@ -96,7 +96,7 @@ define (require) ->
     makeMove: (cell) -> () =>
       return if not @moveRequest()?
       @moveRequest() [cell.col, cell.row]
-      @moveRequest() null
+      @moveRequest null
       return
 
     enterName: () ->
