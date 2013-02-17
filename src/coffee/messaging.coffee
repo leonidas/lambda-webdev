@@ -36,11 +36,11 @@ define (require) ->
         return
 
     onConnect: (callback) ->
-      @sock.onopen callback
+      @sock.onopen = callback
       return
 
     onDisconnect: (callback) ->
-      @sock.onclose callback
+      @sock.onclose = callback
       return
 
     onRequest: (type, callback) ->
