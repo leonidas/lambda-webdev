@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
 
@@ -18,7 +18,7 @@ import Control.Monad (msum)
 import qualified Data.Map as Map
 
 import Game.Types
-import Game.Move (Move, MoveAssoc(..))
+import Game.Move (Move, movePos)
 
 data Game turn = Game Board (GameStatus turn)
 
@@ -40,11 +40,6 @@ foldGameStatus handleTurn handleDraw handleWin s = case s of
     Draw   -> handleDraw
     Win p  -> handleWin p
 
-type CyclicMove turn =
-    ( Other (Other turn) ~ turn
-    , MoveAssoc turn
-    , MoveAssoc (Other turn)
-    )
 
 maybeIf :: Bool -> a -> Maybe a
 maybeIf p a
@@ -54,13 +49,15 @@ maybeIf p a
 newGame :: Game X
 newGame = Game newBoard $ Turn $ makeMove newBoard where
 
-makeMove :: CyclicMove turn => Board -> Move turn -> Maybe (Game (Other turn))
+makeMove :: CyclicPiece turn => Board -> Move turn -> Maybe (Game (Other turn))
 makeMove (Board mp) move
     | pos `Map.member` mp = Nothing
     | c < 1 || c > 3 || r < 1 || r > 3 = Nothing
     | otherwise = Game board' <$> (gameOver <|> nextTurn)
     where
-        assoc@(pos, piece) = moveAssoc move
+        assoc = (pos, piece)
+        piece = reifyPiece move
+        pos   = movePos move
         (Coord c, Coord r) = pos
 
         board'   = Board mp'
