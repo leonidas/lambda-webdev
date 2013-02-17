@@ -9,6 +9,7 @@ import Data.Aeson (ToJSON, FromJSON)
 import Network.WebSockets.Messaging (Future, requestAsync)
 
 import Game.Types
+import Game.User
 import Game.Protocol (ServerRequest(AskMove))
 
 newtype Move (piece :: Piece) = Move Position
@@ -27,5 +28,5 @@ instance MoveAssoc O where
     movePiece _ = O
 
 requestMove :: User (Just piece) -> IO (Future (Move piece))
-requestMove (User{..}) = requestAsync userConn AskMove
+requestMove u = requestAsync (userConn u) AskMove
 

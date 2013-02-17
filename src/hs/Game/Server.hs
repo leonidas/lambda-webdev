@@ -41,6 +41,7 @@ import Network.WebSockets.Messaging
 import Game.Protocol (ServerRequest(..), GameResult(..))
 import Game.Logic (newGame, Game(..), foldGameStatus)
 import Game.Move (requestMove)
+import Game.User (User, newUser, userName, userConn, assignSides, stripSide)
 import Game.Types
 
 type NewPlayer    = User Nothing
@@ -61,7 +62,7 @@ initWSApp = do
         onConnect $ \conn -> do
             name <- request conn AskName
             atomically $ do
-                writeTChan queue $ User name conn
+                writeTChan queue $ newUser name conn
 
 matchMaker :: TChan NewPlayer -> IO ()
 matchMaker queue = forever $ do
@@ -70,8 +71,8 @@ matchMaker queue = forever $ do
 
 nextConnected :: TChan NewPlayer -> STM NewPlayer
 nextConnected queue = do
-    u@User{..} <- readTChan queue
-    disc <- readTVar $ disconnected userConn
+    u <- readTChan queue
+    disc <- readTVar $ disconnected $ userConn u
     if disc
         then nextConnected queue
         else return u
