@@ -32,5 +32,5 @@ html
             tr(data-bind='foreach: $data')
               td(data-bind='text: $data.value, click: $root.makeMove($data)')
 
-        button Play again
+        button(data-bind='visible: newGameRequest, click: playAgain') Play again
 

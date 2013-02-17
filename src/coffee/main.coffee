@@ -20,8 +20,9 @@ define (require) ->
 
       @constructBoard()
 
-      @nameRequest = null
-      @moveRequest = null
+      @nameRequest    = null
+      @moveRequest    = ko.observable(null)
+      @newGameRequest = ko.observable(null)
 
       @reconnect()
 
@@ -40,11 +41,21 @@ define (require) ->
         return
 
       @conn.onRequest "AskMove", (data, callback) =>
-        @moveRequest = callback
+        @moveRequest callback
+        return
+
+      @conn.onRequest "AskNewGame", (data, callback) =>
+        @newGameRequest callback
         return
 
       @conn.onDisconnect =>
         @view "disconnected"
+
+    playAgain: () ->
+      @view "waiting"
+      @newGameRequest() true
+      @newGameRequest null
+      return
 
     reconnect: () ->
       @conn = msg.connect("ws://localhost:8000/")
@@ -59,7 +70,7 @@ define (require) ->
     updateBoard: (board) ->
       @clearBoard()
       for [[col, row], piece] in board
-        @board()[row]()[col].value piece
+        @board()[row-1]()[col-1].value piece
       return
 
     constructBoard: () ->
@@ -74,10 +85,10 @@ define (require) ->
             value: ko.observable(null)
       return
 
-    makeMove: (cell) -> () ->
-      return if not @moveRequest?
-      @moveRequest [cell.col, cell.row]
-      @moveRequest = null
+    makeMove: (cell) -> () =>
+      return if not @moveRequest()?
+      @moveRequest() [cell.col, cell.row]
+      @moveRequest() null
       return
 
     enterName: () ->
