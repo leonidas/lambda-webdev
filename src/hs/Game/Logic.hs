@@ -1,11 +1,11 @@
-{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Game.Logic (playGame, assignSides) where
+module Game.Logic (newGame) where
 
 import Control.Applicative ((<|>), (<$>))
 import Control.Monad (msum, void, join, when)
@@ -14,17 +14,7 @@ import Control.Concurrent (forkIO)
 
 import qualified Data.Map as Map
 
-import Network.WebSockets.Messaging (Future, foldFuture, requestAsync, notify, request)
-
-import Unsafe.Coerce
-
 import Game.Types
-import Game.Protocol (ServerRequest(..), GameResult(..))
-
-type NewPlayer    = User Nothing
-type Player piece = User (Just piece)
-
-type Cyclic a b = (a ~ Other b, b ~ Other a)
 
 type CyclicMove turn =
     ( Other (Other turn) ~ turn
@@ -36,15 +26,6 @@ maybeIf :: Bool -> a -> Maybe a
 maybeIf p a
     | p         = Just a
     | otherwise = Nothing
-
-getMove :: Player piece -> IO (Future (Move piece))
-getMove (User{..}) = requestAsync userConn AskMove
-
-assignSides :: NewPlayer -> NewPlayer -> (Player X, Player O)
-assignSides pl1 pl2 = (unsafeCoerce pl1, unsafeCoerce pl2)
-
-stripSide :: Player t -> NewPlayer
-stripSide = unsafeCoerce
 
 newGame :: Game X
 newGame = Game newBoard $ Turn $ makeMove newBoard where
@@ -79,38 +60,3 @@ makeMove (Board mp) move
 
 newBoard :: Board
 newBoard = Board $ Map.empty
-
-playGame :: TChan NewPlayer -> (Player X, Player O) -> IO ()
-playGame queue (px, po) = start >> play >> both requeue where
-
-    start = atomically $ do
-        notify (userConn px) $ FoundOpponent $ userName po
-        notify (userConn po) $ FoundOpponent $ userName px
-
-    play = go px po newGame
-
-    go :: Cyclic t t' => Player t -> Player t' -> Game t -> IO ()
-    go p p' (Game b st) = sendBoard >> foldGameStatus turn draw win st where
-        turn f = loop where
-            loop        = getMove p >>= resolveMove
-            resolveMove = join . atomically . foldFuture disconnect nextTurn
-            disconnect  = atomically $ notifyResult p' WonGame
-            nextTurn m  = maybe loop (go p' p) (f m)
-
-        draw = atomically $ both $ \u -> notifyResult u DrawGame
-
-        win _ = atomically $ do
-            notifyResult p  LostGame
-            notifyResult p' WonGame
-
-        sendBoard = atomically $ both $ \u -> notify (userConn u) (GameBoard b)
-
-    notifyResult u = notify (userConn u) . GameOver
-
-    both :: Monad m => (forall t.Player t -> m ()) -> m ()
-    both op = op px >> op po
-
-    requeue :: Player t -> IO ()
-    requeue p = void $ forkIO $ do
-        yes <- request (userConn p) AskNewGame
-        when yes $ atomically $ writeTChan queue $ stripSide p

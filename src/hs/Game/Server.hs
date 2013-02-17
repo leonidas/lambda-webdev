@@ -1,6 +1,9 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE GADTs #-}
 
 module Game.Server (initWSApp, app) where
 
@@ -11,13 +14,13 @@ import qualified Network.WebSockets as WS
 
 import Control.Concurrent.STM (STM, newTChanIO, atomically, writeTChan, TChan, readTChan, readTVar)
 import Control.Concurrent (forkIO)
-import Control.Monad (void, liftM2, forever)
+import Control.Monad (void, liftM2, forever, join, when)
 
-import Network.WebSockets.Messaging (onConnect, request, notify, disconnected)
+import Network.WebSockets.Messaging (onConnect, request, notify, disconnected, requestAsync, Future, foldFuture)
 
-import Game.Protocol (ServerRequest(..))
-import Game.Types (User(..))
-import Game.Logic (playGame, assignSides)
+import Game.Protocol (ServerRequest(..), GameResult(..))
+import Game.Logic (newGame)
+import Game.Types
 
 type NewPlayer    = User Nothing
 type Player piece = User (Just piece)
@@ -52,3 +55,42 @@ nextConnected queue = do
         then nextConnected queue
         else return u
 
+getMove :: Player piece -> IO (Future (Move piece))
+getMove (User{..}) = requestAsync userConn AskMove
+
+type Cyclic a b = (a ~ Other b, b ~ Other a)
+
+playGame :: TChan NewPlayer -> (Player X, Player O) -> IO ()
+playGame queue (px, po) = start >> play >> both requeue where
+
+    start = atomically $ do
+        notify (userConn px) $ FoundOpponent $ userName po
+        notify (userConn po) $ FoundOpponent $ userName px
+
+    play = go px po newGame
+
+    go :: Cyclic t t' => Player t -> Player t' -> Game t -> IO ()
+    go p p' (Game b st) = sendBoard >> foldGameStatus turn draw win st where
+        turn f = loop where
+            loop        = getMove p >>= resolveMove
+            resolveMove = join . atomically . foldFuture disconnect nextTurn
+            disconnect  = atomically $ notifyResult p' WonGame
+            nextTurn m  = maybe loop (go p' p) (f m)
+
+        draw = atomically $ both $ \u -> notifyResult u DrawGame
+
+        win _ = atomically $ do
+            notifyResult p  LostGame
+            notifyResult p' WonGame
+
+        sendBoard = atomically $ both $ \u -> notify (userConn u) (GameBoard b)
+
+    notifyResult u = notify (userConn u) . GameOver
+
+    both :: Monad m => (forall t.Player t -> m ()) -> m ()
+    both op = op px >> op po
+
+    requeue :: Player t -> IO ()
+    requeue p = void $ forkIO $ do
+        yes <- request (userConn p) AskNewGame
+        when yes $ atomically $ writeTChan queue $ stripSide p
