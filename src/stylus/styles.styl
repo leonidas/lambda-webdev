@@ -18,10 +18,23 @@
 #game
   .board
     border-collapse collapse
+    background #f0d090
+
+    tr:first-child
+      td
+        border-top none
+    tr:last-child
+      td
+        border-bottom none
+    tr
+      td:first-child
+        border-left none
+      td:last-child
+        border-right none
     td
       width 90px
       height 90px
-      border 1px solid black
+      border 2px solid black
       font-family arial
       font-size 70px
       text-align center
