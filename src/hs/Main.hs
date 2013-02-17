@@ -9,7 +9,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE RankNTypes #-}
 
 
 import Network.Wai (Application)
@@ -31,16 +31,22 @@ import qualified Data.Aeson as JSON
 
 import Network.WebSockets.Messaging
 
--- import Data.Text (Text)
-
 import GHC.Generics (Generic)
 
-import Control.Applicative ((<|>),(<$>))
-import Control.Monad (void, liftM2, guard, join, when)
+import Control.Applicative ((<|>))
+import Control.Monad (void, liftM2, join, when, msum)
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM
 
 import Unsafe.Coerce
+
+(<?>) :: Maybe a -> a -> a
+(<?>) = flip fromMaybe
+
+maybeIf :: Bool -> a -> Maybe a
+maybeIf p a
+    | p         = Just a
+    | otherwise = Nothing
 
 data NameNotification = Name String deriving Generic
 
@@ -60,7 +66,7 @@ data Board = Board (Map Position Piece)
 data Coord = Coord Int deriving (Eq, Ord)
 
 type Position = (Coord, Coord)
-data Piece = X | O
+data Piece = X | O deriving (Show, Eq)
 
 type family Other (p :: Piece) :: Piece
 type instance Other X = O
@@ -68,35 +74,37 @@ type instance Other O = X
 
 newtype Move (piece :: Piece) = Move Position deriving (FromJSON, ToJSON)
 
-class MoveAssoc m where
-    moveAssoc :: m -> (Position, Piece)
+class MoveAssoc (p :: Piece) where
+    moveAssoc :: Move p -> (Position, Piece)
+    moveAssoc m@(Move pos) = (pos, movePiece m)
 
-instance MoveAssoc (Move X) where
-    moveAssoc (Move pos) = (pos, X)
+    movePiece :: Move p -> Piece
 
-instance MoveAssoc (Move O) where
-    moveAssoc (Move pos) = (pos, O)
+instance MoveAssoc X where
+    movePiece _ = X
+
+instance MoveAssoc O where
+    movePiece _ = O
 
 data User (piece :: Maybe Piece) = User
     { userName :: String
     , userConn :: Connection
     }
 
-data Game turn = Game
-    { gameBoard :: Board
-    , gameStatus :: GameStatus turn
-    }
+data Game turn = Game Board (GameStatus turn)
 
 data GameStatus (turn :: Piece) where
-    Turn  :: (Move turn -> Maybe (Game (Other turn))) -> GameStatus turn
+    Turn  :: ProcessMove turn -> GameStatus turn
     Draw  :: GameStatus a
     Win   :: Piece -> GameStatus a
 
 type NewPlayer    = User Nothing
 type Player piece = User (Just piece)
 
+type ProcessMove turn = Move turn -> Maybe (Game (Other turn))
+
 foldGameState
-    :: ((Move turn -> Maybe (Game (Other turn))) -> r)
+    :: (ProcessMove turn -> r)
     -> r
     -> (Piece -> r)
     -> GameStatus turn
@@ -115,23 +123,38 @@ assignSides pl1 pl2 = (unsafeCoerce pl1, unsafeCoerce pl2)
 stripSide :: Player t -> NewPlayer
 stripSide = unsafeCoerce
 
-type Symmetric a b = (a ~ Other b, b ~ Other a)
+type Cyclic a b = (a ~ Other b, b ~ Other a)
 
-type SymmetricMove turn =
+type CyclicMove turn =
     ( Other (Other turn) ~ turn
-    , MoveAssoc (Move turn)
-    , MoveAssoc (Move (Other turn))
+    , MoveAssoc turn
+    , MoveAssoc (Other turn)
     )
 
 newGame :: Game X
 newGame = Game newBoard $ Turn $ go newBoard where
 
-    go :: SymmetricMove turn => Board -> Move turn -> Maybe (Game (Other turn))
-    go (Board mp) move@(Move pos)
+    go :: CyclicMove turn => Board -> Move turn -> Maybe (Game (Other turn))
+    go (Board mp) move
         | pos `Map.member` mp = Nothing
-        | otherwise = Just $ Game board' $ fromMaybe (Turn $ go board') gameOver where
-            board' = Board $ uncurry Map.insert (moveAssoc move) mp
-            gameOver = Nothing
+        | otherwise = Just $ Game board' $ gameOver <?> Turn (go board')
+        where
+            assoc@(pos, piece) = moveAssoc move
+            board'   = Board mp'
+            mp'      = uncurry Map.insert assoc mp
+            gameOver = victory <|> draw
+            draw     = maybeIf (Map.size mp' == 9) Draw
+            victory  = fullRow <|> fullCol <|> fullDiag
+            fullRow  = msum [match (1, r) (1, 0) | r <- [1..3]]
+            fullCol  = msum [match (c, 1) (0, 1) | c <- [1..3]]
+            fullDiag = match (1, 1) (1, 1) <|> match (3, 1) (-1, 1)
+            match (sx, sy) (dx, dy) = go' (2 :: Int) sx sy where
+                go' 0 _ _ = Just $ Win piece
+                go' n x y
+                    | lookup' (x, y) == Just piece = go' (n-1) (x+dx) (y+dy)
+                    | otherwise                   = Nothing
+
+            lookup' (x,y) = Map.lookup (Coord x, Coord y) mp'
 
 
 instance ToJSON Coord where
@@ -202,7 +225,7 @@ newBoard = Board $ Map.fromList
 
 matchMaker :: TChan NewPlayer -> IO ()
 matchMaker queue = do
-    (p1,p2) <- atomically $ liftM2 (,) (readTChan queue) (readTChan queue)
+    (p1,p2) <- atomically $ liftM2 (,) (nextConnected queue) (nextConnected queue)
     void $ forkIO $ playGame queue $ assignSides p1 p2
 
 nextConnected :: TChan NewPlayer -> STM NewPlayer
@@ -222,7 +245,7 @@ playGame queue (px, po) = start >> play >> both requeue where
 
     play = go px po newGame
 
-    go :: Symmetric t t' => Player t -> Player t' -> Game t -> IO ()
+    go :: Cyclic t t' => Player t -> Player t' -> Game t -> IO ()
     go p p' (Game b t) = sendBoard >> foldGameState turn draw win t where
         turn f = loop where
             loop        = getMove p >>= resolveMove
@@ -230,13 +253,13 @@ playGame queue (px, po) = start >> play >> both requeue where
             disco       = atomically $ notify (userConn p') WonGame
             nextTurn m  = maybe loop (go p' p) (f m)
 
-        draw = atomically $ both $ \p -> notify (userConn p) DrawGame
+        draw = atomically $ both $ \u -> notify (userConn u) DrawGame
 
         win _ = atomically $ do
             notify (userConn p) LostGame
             notify (userConn p') WonGame
 
-        sendBoard = atomically $ both $ \p -> notify (userConn p)  (GameBoard b)
+        sendBoard = atomically $ both $ \u -> notify (userConn u)  (GameBoard b)
 
     both :: Monad m => (forall t.Player t -> m ()) -> m ()
     both op = op px >> op po
