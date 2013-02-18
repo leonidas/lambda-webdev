@@ -2,6 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE Rank2Types #-}
 
 module Network.WebSockets.Messaging.Connection where
 
@@ -136,13 +137,13 @@ nextReqId (Connection {..}) = do
     return rqId
 
 
-onRequest :: (Message req, ToJSON resp) => Connection -> (req -> IO resp) -> STM ()
+onRequest :: Request req => Connection -> (forall resp. ToJSON resp => req resp -> IO resp) -> STM ()
 onRequest conn@(Connection {..}) !handler = do
     sid <- nextSubId conn
     modifyTVar' requestSubs (IntMap.insert sid handler') where
-        handler' js = case msgFromJSON js of
-            Json.Success rq -> return $! toJSON <$> handler rq
-            Error _         -> retry
+        handler' js = case reqFromJSON js of
+            Json.Success (Some rq) -> return $! toJSON <$> handler rq
+            Error _                -> retry
 
 onNotify :: Message req => Connection -> (req -> IO ()) -> STM ()
 onNotify conn@(Connection{..}) !handler = do

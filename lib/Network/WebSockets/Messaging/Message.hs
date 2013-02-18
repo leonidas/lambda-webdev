@@ -18,7 +18,7 @@ import Data.Aeson.Types
 import Data.String
 
 data Some t where
-    Some :: t x -> Some t
+    Some :: (FromJSON x, ToJSON x) => t x -> Some t
 
 class Request r where
     reqToJSON   :: r a -> Value
