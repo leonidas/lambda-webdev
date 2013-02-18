@@ -24,7 +24,6 @@ library
   hs-source-dirs: lib
 
   build-depends: base
-    , ghc-prim
     , text
     , bytestring
     , containers
@@ -51,7 +50,6 @@ executable lambda-webdev
 
   build-depends: lambda-webdev
     , base
-    , ghc-prim
     , array
     , containers
     , text

@@ -4,7 +4,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Network.WebSockets.Messaging.Message.TH where
+module Network.WebSockets.Messaging.Message.TH (deriveMessage) where
 
 import Control.Applicative ((<$>))
 import Control.Monad (replicateM)
@@ -58,7 +58,6 @@ conFromJson req c = do
 
         pat = litP $ StringL base
         dat = varE (mkName "dat")
-        datObj = varE (mkName "datObj")
         con = conE name
 
         tuple  = return $ TupP $ map VarP varNames
@@ -66,14 +65,15 @@ conFromJson req c = do
 
         body = case c of
             NormalC _ ts -> case ts of
-                []  -> [|return $con|]
+                []  -> [|case $dat of {Null -> return $con; _ -> fail "unexpected data for unit message"}|]
                 [_] -> [|$con <$> parseJSON $dat|]
                 _   -> doE [bind, noBindS [| return $(appsE (con:fields)) |]]
                 where bind = bindS tuple [|parseJSON|]
 
             RecC _ ts -> [|let Object datObj = $dat in $expr|] where
-                expr = doE [bind, noBindS [| return $(appsE (con:fields)) |]]
-                bind = bindS tuple $ tupE $ map getField ts
+                datObj = varE (mkName "datObj")
+                expr   = doE [bind, noBindS [| return $(appsE (con:fields)) |]]
+                bind   = bindS tuple $ tupE $ map getField ts
                 getField (nameBase -> n, _, _) = [| $datObj .: fromString n |]
 
         body' = [|Some <$> $body|]
