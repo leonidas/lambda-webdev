@@ -41,11 +41,18 @@ import Network.WebSockets.Messaging
 import Game.Protocol (ServerRequest(..), GameResult(..))
 import Game.Logic (newGame, Game(..), foldGameStatus)
 import Game.Move (requestMove)
-import Game.User (User, newUser, userName, userConn, assignSides, stripSide)
-import Game.Types
+import Game.User
+    ( User
+    , newUser
+    , userName
+    , userConn
+    , assignSides
+    , stripSide
+    , Player
+    , NewPlayer
+    )
 
-type NewPlayer    = User Nothing
-type Player piece = User (Just piece)
+import Game.Piece (Piece(..), Other)
 
 app :: Application
 app = staticApp $ (defaultFileServerSettings "public")

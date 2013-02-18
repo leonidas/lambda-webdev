@@ -3,13 +3,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Game.Types where
-
-import Data.Map (Map)
-
-data Board = Board (Map Position Piece)
-data Coord = Coord Int deriving (Eq, Ord)
-type Position = (Coord, Coord)
+module Game.Piece where
 
 data Piece = X | O deriving (Eq)
 

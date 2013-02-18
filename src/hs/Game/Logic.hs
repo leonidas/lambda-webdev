@@ -17,8 +17,9 @@ import Control.Monad (msum)
 
 import qualified Data.Map as Map
 
-import Game.Types
-import Game.Move (Move, movePos)
+import Game.Move  (Move, movePos)
+import Game.Piece
+import Game.Board (Board(..), Coord(..))
 
 data Game turn = Game Board (GameStatus turn)
 

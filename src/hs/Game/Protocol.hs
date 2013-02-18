@@ -12,7 +12,8 @@ import qualified Data.Map as Map
 import Network.WebSockets.Messaging (Message)
 import GHC.Generics (Generic)
 
-import Game.Types (Board(..), Coord(..), Piece(..))
+import Game.Board (Board(..), Coord(..))
+import Game.Piece (Piece(..))
 
 data ServerRequest
     = AskName
