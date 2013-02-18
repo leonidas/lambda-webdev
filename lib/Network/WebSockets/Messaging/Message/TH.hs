@@ -20,33 +20,34 @@ import Network.WebSockets.Messaging.Message
 deriveMessage :: Name -> DecsQ
 deriveMessage n = do
     (TyConI (DataD _ _ tyvars cons _)) <- reify n
-    let genToJson = CaseE (VarE $ mkName "m") <$> mapM conToJson cons
-        genFromJson = [|
+    let genToJson = caseE (varE $ mkName "m") $ map conToJson cons
+        genFromJson req = [|
             let p (Object o) = do
                     typ <- o .: "msg"  :: Parser String
                     dat <- o .: "data" :: Parser Value
-                    $(CaseE (VarE $ mkName "typ") <$> mapM conFromJson cons)
+                    $(caseE (varE $ mkName "typ") . wild $ map (conFromJson req) cons)
 
                 p _ = fail "invalid message, object expected"
             in parse p
             |]
+        wild = flip (++) [match wildP (normalB [|fail "invalid message"|]) []]
 
     case length tyvars of
         0 -> [d|
             instance Message $(conT n) where
                 msgToJSON m = $(genToJson)
-                msgFromJSON = $(genFromJson)
+                msgFromJSON = $(genFromJson False)
             |]
         1 -> [d|
-            instance Message ($(conT n) t) where
-                msgToJSON m = $(genToJson)
-                msgFromJSON = $(genFromJson)
+            instance Request $(conT n) where
+                reqToJSON m = $(genToJson)
+                reqFromJSON = $(genFromJson True)
             |]
         _ -> fail "Types with more than one type variable not supported"
 
-conFromJson :: Con -> MatchQ
-conFromJson (ForallC _ _ c) = conFromJson c
-conFromJson c = do
+conFromJson :: Bool -> Con -> MatchQ
+conFromJson req (ForallC _ _ c) = conFromJson req c
+conFromJson req c = do
     let (name, numFields) = case c of
             NormalC n ts -> (n, length ts)
             RecC n ts -> (n, length ts)
@@ -62,8 +63,8 @@ conFromJson c = do
 
         tuple  = return $ TupP $ map VarP varNames
         fields = map varE varNames
-        -- foldr (conE name) $ replicate numFields [|parseJSON|]
-        body = normalB $ case c of
+
+        body = case c of
             NormalC _ ts -> case ts of
                 []  -> [|return $con|]
                 [_] -> [|$con <$> parseJSON $dat|]
@@ -75,8 +76,12 @@ conFromJson c = do
                 bind = bindS tuple $ tupE $ map getField ts
                 getField (nameBase -> n, _, _) = [| $datObj .: fromString n |]
 
+        body' = [|Some <$> $body|]
 
-    match pat body []
+    if req
+        then match pat (normalB body') []
+        else match pat (normalB body) []
+
 
 conToJson :: Con -> MatchQ
 conToJson (ForallC _ _ c) = conToJson c

@@ -1,8 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE GADTs #-}
 
@@ -11,25 +7,26 @@ module Game.Protocol where
 import Data.Aeson (FromJSON(..), ToJSON(..))
 import qualified Data.Aeson as JSON
 
-import Network.WebSockets.Messaging (Message)
 import Network.WebSockets.Messaging.Message.TH (deriveMessage)
-import GHC.Generics (Generic)
 
 import Game.Board (Board)
+import Game.Move (Move)
 
-data ServerRequest
-    = AskName
-    | AskMove
-    | AskNewGame
-    | FoundOpponent String
+data ServerRequest resp where
+    AskName    :: ServerRequest String
+    AskMove    :: ServerRequest (Move t)
+    AskNewGame :: ServerRequest Bool
+
+data ServerNotify
+    = FoundOpponent String
     | GameBoard Board
     | GameOver GameResult
-    deriving Generic
 
 data GameResult = WonGame | LostGame | DrawGame
 
 -- instance Message ServerRequest
 deriveMessage ''ServerRequest
+deriveMessage ''ServerNotify
 
 instance ToJSON GameResult where
     toJSON WonGame  = "won"

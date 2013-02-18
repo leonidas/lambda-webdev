@@ -72,7 +72,7 @@ newConnection = Connection
     <*> newTVar 0
     <*> newTVar IntMap.empty
 
-requestAsync :: (Message req, FromJSON resp) => Connection -> req -> IO (Future resp)
+requestAsync :: (Request req, FromJSON resp) => Connection -> req resp -> IO (Future resp)
 requestAsync conn@(Connection {..}) !req = do
     resp <- newEmptyTMVarIO
     fut  <- newEmptyTMVarIO
@@ -82,7 +82,7 @@ requestAsync conn@(Connection {..}) !req = do
         rqId <- atomically $ do
             rqId <- nextReqId conn
             modifyTVar' reqMap $! IntMap.insert rqId resp
-            send conn $! Request rqId $! msgToJSON req
+            send conn $! Request rqId $! reqToJSON req
             return rqId
 
         js <- atomically $ do
@@ -98,7 +98,7 @@ requestAsync conn@(Connection {..}) !req = do
     return $ Future fut (readTVar disconnected)
 
 
-request :: (Message req, FromJSON resp) => Connection -> req -> IO resp
+request :: (Request req, FromJSON resp) => Connection -> req resp -> IO resp
 request conn@(Connection {..}) !req = do
     rqId <- atomically $ do
         rqId' <- readTVar reqId
@@ -108,7 +108,7 @@ request conn@(Connection {..}) !req = do
     resp <- newEmptyTMVarIO
     atomically $ do
         modifyTVar' reqMap $! IntMap.insert rqId resp
-        send conn $! Request rqId $! msgToJSON req
+        send conn $! Request rqId $! reqToJSON req
 
     js <- atomically $ do
         modifyTVar' reqMap $! IntMap.delete rqId

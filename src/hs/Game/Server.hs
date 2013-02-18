@@ -33,14 +33,16 @@ import Control.Monad (void, liftM2, forever, join, when)
 import Network.WebSockets.Messaging
     ( onConnect
     , request
+    , requestAsync
     , notify
     , disconnected
     , foldFuture
+    , Future
     )
 
-import Game.Protocol (ServerRequest(..), GameResult(..))
+import Game.Protocol (ServerRequest(..), ServerNotify(..), GameResult(..))
 import Game.Logic (newGame, Game(..), foldGameStatus)
-import Game.Move (requestMove)
+import Game.Move (Move)
 import Game.User
     ( User
     , newUser
@@ -120,3 +122,6 @@ playGame queue (px, po) = start >> play >> both requeue where
     requeue p = void $ forkIO $ do
         yes <- request (userConn p) AskNewGame
         when yes $ atomically $ writeTChan queue $ stripSide p
+
+requestMove :: Player piece -> IO (Future (Move piece))
+requestMove u = requestAsync (userConn u) AskMove

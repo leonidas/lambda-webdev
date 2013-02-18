@@ -5,8 +5,10 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE GADTs #-}
 
-module Network.WebSockets.Messaging.Message (Message(..)) where
+
+module Network.WebSockets.Messaging.Message (Message(..), Some(..), Request(..)) where
 
 import Control.Monad (guard)
 import Control.Applicative ((<|>))
@@ -14,6 +16,13 @@ import GHC.Generics
 import Data.Aeson
 import Data.Aeson.Types
 import Data.String
+
+data Some t where
+    Some :: t x -> Some t
+
+class Request r where
+    reqToJSON   :: r a -> Value
+    reqFromJSON :: Value -> Result (Some r)
 
 class Message m where
     msgToJSON   :: m -> Value
