@@ -9,6 +9,8 @@ module Network.WebSockets.Messaging
     , onConnect
     , onDisconnect
     , Message(..)
+    , Some(..)
+    , deriveMessage
     , Future
     , get
     , foldFuture
@@ -16,4 +18,5 @@ module Network.WebSockets.Messaging
 
 import Network.WebSockets.Messaging.Connection
 import Network.WebSockets.Messaging.Message
+import Network.WebSockets.Messaging.Message.TH
 
