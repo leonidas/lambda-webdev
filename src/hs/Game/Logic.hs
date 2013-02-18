@@ -4,6 +4,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PatternGuards #-}
 
 module Game.Logic
     ( newGame
@@ -15,11 +16,9 @@ module Game.Logic
 import Control.Applicative ((<|>), (<$>))
 import Control.Monad (msum)
 
-import qualified Data.Map as Map
-
 import Game.Move  (Move, movePos)
 import Game.Piece
-import Game.Board (Board(..), Coord(..))
+import Game.Board
 
 data Game turn = Game Board (GameStatus turn)
 
@@ -51,34 +50,18 @@ newGame :: Game X
 newGame = Game newBoard $ Turn $ makeMove newBoard where
 
 makeMove :: CyclicPiece turn => Board -> Move turn -> Maybe (Game (Other turn))
-makeMove (Board mp) move
-    | pos `Map.member` mp = Nothing
-    | c < 1 || c > 3 || r < 1 || r > 3 = Nothing
-    | otherwise = Game board' <$> (gameOver <|> nextTurn)
+makeMove b move
+    | Nothing <- b ! pos = Game b' <$> (gameOver <|> nextTurn)
+    | otherwise          = Nothing
     where
-        assoc = (pos, piece)
         piece = reifyPiece move
         pos   = movePos move
-        (Coord c, Coord r) = pos
+        b'    = putPiece piece pos b
 
-        board'   = Board mp'
-        mp'      = uncurry Map.insert assoc mp
-
-        nextTurn = Just $ Turn $ makeMove board'
+        nextTurn = Just $ Turn $ makeMove b'
         gameOver = victory <|> draw
-        draw     = maybeIf (Map.size mp' == 9) Draw
-        victory  = fullRow <|> fullColumn <|> fullDiagonal
+        draw     = maybeIf (isFull b') Draw
+        victory  = msum [check l | l <- lanes]
 
-        fullRow      = msum [match (1, row) (1, 0) | row <- [1..3]]
-        fullColumn   = msum [match (col, 1) (0, 1) | col <- [1..3]]
-        fullDiagonal = match (1, 1) (1, 1) <|> match (3, 1) (-1, 1)
-
-        match (sx, sy) (dx, dy) = go (3 :: Int) sx sy where
-            go _ x y | lookup' (x, y) /= Just piece = Nothing
-            go 1 _ _ = Just $ Win piece
-            go n x y = go (n-1) (x+dx) (y+dy)
-
-        lookup' (x,y) = Map.lookup (Coord x, Coord y) mp'
-
-newBoard :: Board
-newBoard = Board $ Map.empty
+        check lane = maybeIf allMatch $ Win piece where
+            allMatch = all (\p -> b' ! p == Just piece) lane

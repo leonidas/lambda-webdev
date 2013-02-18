@@ -2,18 +2,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE Rank2Types #-}
 
 module Game.Protocol where
 
 import Data.Aeson (FromJSON(..), ToJSON(..))
 import qualified Data.Aeson as JSON
-import qualified Data.Map as Map
 
 import Network.WebSockets.Messaging (Message)
 import GHC.Generics (Generic)
 
-import Game.Board (Board(..), Coord(..))
-import Game.Piece (Piece(..))
+import Game.Board (Board)
 
 data ServerRequest
     = AskName
@@ -38,29 +37,4 @@ instance FromJSON GameResult where
     parseJSON (JSON.String "lost") = return LostGame
     parseJSON (JSON.String "draw") = return DrawGame
     parseJSON _ = fail "Invalid game result"
-
-instance ToJSON Coord where
-    toJSON (Coord i) = toJSON i
-
-instance FromJSON Coord where
-    parseJSON js = do
-        i <- parseJSON js
-        if (i >= 1 && i <= 3)
-            then return $ Coord i
-            else fail "invalid coordinate"
-
-instance ToJSON Piece where
-    toJSON X = JSON.String "X"
-    toJSON O = JSON.String "O"
-
-instance FromJSON Piece where
-    parseJSON (JSON.String "X") = return X
-    parseJSON (JSON.String "O") = return O
-    parseJSON _ = fail "invalid Piece"
-
-instance ToJSON Board where
-    toJSON (Board mp) = toJSON $ Map.assocs mp
-
-instance FromJSON Board where
-    parseJSON = fmap (Board . Map.fromList) . parseJSON
 
