@@ -121,8 +121,8 @@ request conn@(Connection {..}) !req = do
             atomically $! send conn $! ProtocolError $! T.pack msg
             error "malformed response"
 
-notify :: Message ntfy => Connection -> ntfy -> STM ()
-notify conn = send conn . Notification . msgToJSON
+notify :: Notify ntfy => Connection -> ntfy -> STM ()
+notify conn = send conn . Notification . ntfyToJSON
 
 nextSubId :: Connection -> STM SubId
 nextSubId (Connection {..}) = do
@@ -148,11 +148,11 @@ onRequest conn@(Connection {..}) !handler = do
             Json.Success (Some rq) -> return $! toJSON <$> handler rq
             Error _                -> retry
 
-onNotify :: Message req => Connection -> (req -> IO ()) -> STM ()
+onNotify :: Notify ntfy => Connection -> (ntfy -> IO ()) -> STM ()
 onNotify conn@(Connection{..}) !handler = do
     sid <- nextSubId conn
     modifyTVar' notifySubs (IntMap.insert sid handler') where
-        handler' js = case msgFromJSON js of
+        handler' js = case ntfyFromJSON js of
             Json.Success ntfy -> return $! handler ntfy
             Error _           -> retry
 

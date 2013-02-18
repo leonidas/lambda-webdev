@@ -1,6 +1,10 @@
 {-# LANGUAGE GADTs #-}
 
-module Network.WebSockets.Messaging.Message (Message(..), Some(..), Request(..)) where
+module Network.WebSockets.Messaging.Message
+    ( Notify(..)
+    , Request(..)
+    , Some(..)
+    ) where
 
 import Data.Aeson
 
@@ -11,6 +15,6 @@ class Request r where
     reqToJSON   :: r a -> Value
     reqFromJSON :: Value -> Result (Some r)
 
-class Message m where
-    msgToJSON   :: m -> Value
-    msgFromJSON :: Value -> Result m
+class Notify n where
+    ntfyToJSON   :: n -> Value
+    ntfyFromJSON :: Value -> Result n

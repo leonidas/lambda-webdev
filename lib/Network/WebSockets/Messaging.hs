@@ -8,9 +8,11 @@ module Network.WebSockets.Messaging
     , onNotify
     , onConnect
     , onDisconnect
-    , Message(..)
+    , Request(..)
+    , Notify(..)
     , Some(..)
-    , deriveMessage
+    , deriveRequest
+    , deriveNotify
     , Future
     , get
     , foldFuture

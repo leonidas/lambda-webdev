@@ -4,7 +4,10 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Network.WebSockets.Messaging.Message.TH (deriveMessage) where
+module Network.WebSockets.Messaging.Message.TH
+    ( deriveRequest
+    , deriveNotify
+    ) where
 
 import Control.Applicative ((<$>))
 import Control.Monad (replicateM)
@@ -17,33 +20,40 @@ import Language.Haskell.TH
 
 import Network.WebSockets.Messaging.Message
 
-deriveMessage :: Name -> DecsQ
-deriveMessage n = do
+deriveRequest :: Name -> DecsQ
+deriveRequest = deriveMessage True
+
+deriveNotify :: Name -> DecsQ
+deriveNotify = deriveMessage False
+
+
+deriveMessage :: Bool -> Name -> DecsQ
+deriveMessage req n = do
     (TyConI (DataD _ _ tyvars cons _)) <- reify n
     let genToJson = caseE (varE $ mkName "m") $ map conToJson cons
-        genFromJson req = [|
+        genFromJson = [|
             let p (Object o) = do
                     typ <- o .: "msg"  :: Parser String
                     dat <- o .: "data" :: Parser Value
-                    $(caseE (varE $ mkName "typ") . wild $ map (conFromJson req) cons)
+                    $(caseE (varE $ mkName "typ") . wild
+                        $ map (conFromJson req) cons)
 
                 p _ = fail "invalid message, object expected"
             in parse p
             |]
         wild = flip (++) [match wildP (normalB [|fail "invalid message"|]) []]
 
-    case length tyvars of
-        0 -> [d|
-            instance Message $(conT n) where
-                msgToJSON m = $(genToJson)
-                msgFromJSON = $(genFromJson False)
-            |]
-        1 -> [d|
+    if req
+        then [d|
             instance Request $(conT n) where
                 reqToJSON m = $(genToJson)
-                reqFromJSON = $(genFromJson True)
+                reqFromJSON = $(genFromJson)
             |]
-        _ -> fail "Types with more than one type variable not supported"
+        else [d|
+            instance Notify $(conT n) where
+                ntfyToJSON m = $(genToJson)
+                ntfyFromJSON = $(genFromJson)
+            |]
 
 conFromJson :: Bool -> Con -> MatchQ
 conFromJson req (ForallC _ _ c) = conFromJson req c
@@ -65,7 +75,10 @@ conFromJson req c = do
 
         body = case c of
             NormalC _ ts -> case ts of
-                []  -> [|case $dat of {Null -> return $con; _ -> fail "unexpected data for unit message"}|]
+                []  -> [|case $dat of
+                    Null -> return $con
+                    _    -> fail "unexpected data for unit message"
+                    |]
                 [_] -> [|$con <$> parseJSON $dat|]
                 _   -> doE [bind, noBindS [| return $(appsE (con:fields)) |]]
                 where bind = bindS tuple [|parseJSON|]

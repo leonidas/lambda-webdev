@@ -7,7 +7,7 @@ module Game.Protocol where
 import Data.Aeson (FromJSON(..), ToJSON(..))
 import qualified Data.Aeson as JSON
 
-import Network.WebSockets.Messaging (deriveMessage)
+import Network.WebSockets.Messaging (deriveRequest, deriveNotify)
 
 import Game.Board (Board)
 import Game.Move (Move)
@@ -24,8 +24,8 @@ data ServerNotify
 
 data GameResult = WonGame | LostGame | DrawGame
 
-deriveMessage ''ServerRequest
-deriveMessage ''ServerNotify
+deriveRequest ''ServerRequest
+deriveNotify  ''ServerNotify
 
 instance ToJSON GameResult where
     toJSON WonGame  = "won"
