@@ -19,6 +19,7 @@ library
     , Network.WebSockets.Messaging.Connection
     , Network.WebSockets.Messaging.Container
     , Network.WebSockets.Messaging.Message
+    , Network.WebSockets.Messaging.Message.TH
 
   hs-source-dirs: lib
 
@@ -29,6 +30,7 @@ library
     , containers
     , stm
     , transformers
+    , template-haskell
 
     , websockets ==0.7.*
     , aeson ==0.6.*

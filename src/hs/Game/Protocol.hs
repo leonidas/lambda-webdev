@@ -3,6 +3,8 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE GADTs #-}
 
 module Game.Protocol where
 
@@ -10,6 +12,7 @@ import Data.Aeson (FromJSON(..), ToJSON(..))
 import qualified Data.Aeson as JSON
 
 import Network.WebSockets.Messaging (Message)
+import Network.WebSockets.Messaging.Message.TH (deriveMessage)
 import GHC.Generics (Generic)
 
 import Game.Board (Board)
@@ -25,7 +28,8 @@ data ServerRequest
 
 data GameResult = WonGame | LostGame | DrawGame
 
-instance Message ServerRequest
+-- instance Message ServerRequest
+deriveMessage ''ServerRequest
 
 instance ToJSON GameResult where
     toJSON WonGame  = "won"
