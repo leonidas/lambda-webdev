@@ -28,7 +28,7 @@ import Control.Concurrent.STM
     )
 
 import Control.Concurrent (forkIO)
-import Control.Monad (void, liftM2, forever, join, when)
+import Control.Monad (void, replicateM, forever, join, when)
 
 import Network.WebSockets.Messaging
     ( onConnect
@@ -75,7 +75,7 @@ initWSApp = do
 
 matchMaker :: TChan NewPlayer -> IO ()
 matchMaker queue = forever $ do
-    (p1,p2) <- atomically $ liftM2 (,) (nextConnected queue) (nextConnected queue)
+    [p1, p2] <- atomically $ replicateM 2 $ nextConnected queue
     void $ forkIO $ playGame queue $ assignSides p1 p2
 
 nextConnected :: TChan NewPlayer -> STM NewPlayer

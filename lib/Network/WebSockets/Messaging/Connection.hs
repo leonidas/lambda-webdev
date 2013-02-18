@@ -137,7 +137,10 @@ nextReqId (Connection {..}) = do
     return rqId
 
 
-onRequest :: Request req => Connection -> (forall resp. ToJSON resp => req resp -> IO resp) -> STM ()
+onRequest :: Request req
+    => Connection
+    -> (forall resp. ToJSON resp => req resp -> IO resp)
+    -> STM ()
 onRequest conn@(Connection {..}) !handler = do
     sid <- nextSubId conn
     modifyTVar' requestSubs (IntMap.insert sid handler') where
@@ -168,7 +171,6 @@ sendJson = sendTextData . encode
 
 sinkJson :: TextProtocol p => Sink p -> Json.Value -> IO ()
 sinkJson sink = sendSink sink . DataMessage . Text . encode
--- sinkJson sink js = sendSink sink . DataMessage . Text . encode $ (trace (show js) js)
 
 untilClosed :: Closable TQueue a -> (a -> STM b) -> (b -> IO c) -> IO ()
 untilClosed chan handler after = loop where
@@ -217,7 +219,7 @@ dispatch conn@(Connection {..}) !c = case c of
 onConnect :: TextProtocol p => (Connection -> IO ()) -> WebSockets p ()
 onConnect handler = do
     conn@(Connection {..}) <- liftIO $ atomically newConnection
-    let replyInvalid = send conn $ ProtocolError "invalid message"
+    let replyInvalid = atomically $ send conn $ ProtocolError "invalid message"
 
         handleWriteError (_ :: ConnectionError) = signalDisconnect
         handleReadError _ = liftIO signalDisconnect
@@ -226,9 +228,8 @@ onConnect handler = do
                 writeTQueue outbox Nothing
                 writeTVar disconnected True
 
-
         readLoop = forever $ do
-            recvJson >>= liftIO . maybe (atomically $ replyInvalid) (dispatch conn)
+            recvJson >>= liftIO . maybe replyInvalid (dispatch conn)
 
     sink <- getSink
 
