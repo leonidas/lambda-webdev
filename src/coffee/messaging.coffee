@@ -52,6 +52,10 @@ define (require) ->
       return
 
     request: (type, data, callback) ->
+      if not callback? and typeof data == "function"
+        callback = data
+        data = null
+
       rqId = @reqId
       @reqId += 1
       @reqMap[rqId] = callback
