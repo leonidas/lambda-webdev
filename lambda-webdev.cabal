@@ -47,6 +47,7 @@ executable lambda-webdev
     , Game.User
     , Game.Piece
     , Game.Board
+    , Game.Random
 
   build-depends: lambda-webdev
     , base
@@ -64,6 +65,7 @@ executable lambda-webdev
     , wai-app-static ==1.3.*
     , wai-websockets ==1.3.*
     , aeson ==0.6.*
+    , MonadRandom ==0.1.*
 
 
 
