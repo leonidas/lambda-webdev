@@ -43,6 +43,7 @@ import Network.WebSockets.Messaging
 import Game.Protocol (ServerRequest(..), ServerNotify(..), GameResult(..))
 import Game.Logic (newGame, Game(..), foldGameStatus)
 import Game.Move (Move)
+import Game.Random (runRandom)
 import Game.User
     ( User
     , newUser
@@ -76,7 +77,7 @@ initWSApp = do
 matchMaker :: TChan NewPlayer -> IO ()
 matchMaker queue = forever $ do
     [p1, p2] <- atomically $ replicateM 2 $ nextConnected queue
-    void $ forkIO $ playGame queue $ assignSides p1 p2
+    runRandom (assignSides p1 p2) >>= void . forkIO . playGame queue
 
 nextConnected :: TChan NewPlayer -> STM NewPlayer
 nextConnected queue = do
@@ -95,15 +96,15 @@ playGame queue (px, po) = start >> play >> both requeue where
         notify (userConn px) $ FoundOpponent $ userName po
         notify (userConn po) $ FoundOpponent $ userName px
 
-    play = go px po newGame
+    play = playTurn px po newGame
 
-    go :: Cyclic t t' => Player t -> Player t' -> Game t -> IO ()
-    go p p' (Game b st) = sendBoard >> foldGameStatus turn draw win st where
+    playTurn :: Cyclic t t' => Player t -> Player t' -> Game t -> IO ()
+    playTurn p p' (Game b st) = sendBoard >> foldGameStatus turn draw win st where
         turn f = loop where
             loop        = requestMove p >>= resolveMove
             resolveMove = join . atomically . foldFuture disconnect nextTurn
             disconnect  = atomically $ notifyResult p' WonGame
-            nextTurn m  = maybe loop (go p' p) (f m)
+            nextTurn m  = maybe loop (playTurn p' p) (f m)
 
         draw = atomically $ both $ \u -> notifyResult u DrawGame
 
@@ -115,7 +116,7 @@ playGame queue (px, po) = start >> play >> both requeue where
 
     notifyResult u = notify (userConn u) . GameOver
 
-    both :: Monad m => (forall t.Player t -> m ()) -> m ()
+    both :: Monad m => (forall t. Player t -> m ()) -> m ()
     both op = op px >> op po
 
     requeue :: Player t -> IO ()

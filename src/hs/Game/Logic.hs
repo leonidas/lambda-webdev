@@ -20,14 +20,15 @@ import Game.Move  (Move, movePos)
 import Game.Piece
 import Game.Board
 
-data Game turn = Game Board (GameStatus turn)
+data Game (turn :: Piece) = Game Board (GameStatus turn)
+
+type ProcessMove turn = Move turn -> Maybe (Game (Other turn))
 
 data GameStatus (turn :: Piece) where
     Turn  :: ProcessMove turn -> GameStatus turn
     Draw  :: GameStatus a
     Win   :: Piece -> GameStatus a
 
-type ProcessMove turn = Move turn -> Maybe (Game (Other turn))
 
 foldGameStatus
     :: (ProcessMove turn -> r)
@@ -47,21 +48,29 @@ maybeIf p a
     | otherwise = Nothing
 
 newGame :: Game X
-newGame = Game newBoard $ Turn $ makeMove newBoard where
+newGame = Game newBoard $ Turn $ makeMove newBoard
 
-makeMove :: CyclicPiece turn => Board -> Move turn -> Maybe (Game (Other turn))
-makeMove b move
-    | Nothing <- b ! pos = Game b' <$> (gameOver <|> nextTurn)
-    | otherwise          = Nothing
+type CyclicTurn turn =
+    ( ReifyPiece turn
+    , ReifyPiece (Other turn)
+    , Other (Other turn) ~ turn
+    )
+
+
+makeMove :: CyclicTurn turn => Board -> ProcessMove turn
+makeMove board move
+    | Nothing <- board ! pos = Game board' <$> (gameOver <|> nextTurn)
+    | otherwise              = Nothing
     where
-        piece = reifyPiece move
-        pos   = movePos move
-        b'    = putPiece piece pos b
+        piece  = reifyPiece move
+        pos    = movePos move
+        board' = putPiece piece pos board
 
-        nextTurn = Just $ Turn $ makeMove b'
+        nextTurn = Just $ Turn $ makeMove board'
         gameOver = victory <|> draw
-        draw     = maybeIf (isFull b') Draw
-        victory  = msum [check l | l <- lanes]
+        draw     = maybeIf (isFull board') Draw
+        victory  = msum $ map check lanes
 
         check lane = maybeIf allMatch $ Win piece where
-            allMatch = all (\p -> b' ! p == Just piece) lane
+            allMatch = all (\p -> board' ! p == Just piece) lane
+

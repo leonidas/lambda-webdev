@@ -25,12 +25,6 @@ instance ReifyPiece X where
 instance ReifyPiece O where
     reifyPiece _ = O
 
-type CyclicPiece piece =
-    ( Other (Other piece) ~ piece
-    , ReifyPiece piece
-    , ReifyPiece (Other piece)
-    )
-
 instance ToJSON Piece where
     toJSON X = JSON.String "X"
     toJSON O = JSON.String "O"
