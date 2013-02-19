@@ -139,7 +139,7 @@ nextReqId (Connection {..}) = do
 
 onRequest :: Request req
     => Connection
-    -> (forall resp. ToJSON resp => req resp -> IO resp)
+    -> (forall resp. req resp -> IO resp)
     -> STM ()
 onRequest conn@(Connection {..}) !handler = do
     sid <- nextSubId conn
