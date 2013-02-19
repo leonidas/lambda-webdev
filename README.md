@@ -1,12 +1,11 @@
-# Haskell Rich Web Application Example
 
-This exercise will demonstrate how to write a Haskell back-end for a dynamic,
-real-time web application. We will write the client-side logic using
-[CoffeeScript](http://coffeescript.org) and [Knockout.js](http://knockoutjs.com)
-and implement two-way communication with WebSockets on top of a Haskell web
-server.
+# Haskell Web Game Example
 
-## How to get started
+This is an example implementation of a browser based Tic-Tac-Toe using [CoffeeScript](http://coffeescript.org) and [Haskell](http://www.haskell.org/haskellwiki/Haskell).
+The client-side logic is implemented using [Knockout.js](http://knockoutjs.com)
+and WebSockets are used for two-way communication between the client and server.
+
+## How to build the project
 
 First, install the [Haskell Platform](http://www.haskell.org/platform/) and get
 the latest repository information by running
@@ -20,6 +19,7 @@ Jade/CoffeeScript/Stylus tool-chain. Best way to install Node is by using [NVM](
 
     git clone git://github.com/leonidas/lambda-webdev.git
     cd lambda-webdev
+    git checkout type-safe
 
 ### Get the required JavaScript tools
 
@@ -56,13 +56,4 @@ so you might opt to use the regular cabal instead.
 
     ./grunt
 
-
-## Editing Haskell sources
-
-In order to get proper auto-complete and other goodies, you should install [`ghc-mod`](http://www.mew.org/~kazu/proj/ghc-mod/en/).
-
-    cabal install ghc-mod
-
-The tool works with either vim, emacs or Sublime Text (via [SublimeHaskell](https://github.com/SublimeHaskell/SublimeHaskell)). For SublimeHaskell, you also need to run
-
-    cabal install aeson haskell-src-exts
+This will launch a web server that listens to the port 8000.
