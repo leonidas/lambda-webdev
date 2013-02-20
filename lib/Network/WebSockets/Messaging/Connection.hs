@@ -12,7 +12,7 @@ import Control.Concurrent (forkIO)
 import Control.Concurrent.STM
 
 import Control.Applicative
-import Control.Monad (guard, forever, void, (>=>), mplus)
+import Control.Monad (guard, forever, void, (>=>), msum)
 import Control.Monad.IO.Class
 
 import Data.Aeson (encode, decode, ToJSON(..), FromJSON(..), fromJSON, Result(..))
@@ -34,7 +34,7 @@ import Network.WebSockets.Messaging.Message
 
 type Closable c a = c (Maybe a)
 
-type Handler r = Json.Value -> STM (IO r)
+type Handler r = Json.Value -> Maybe (IO r)
 
 type SubId = Int
 
@@ -146,7 +146,7 @@ onRequest conn@(Connection {..}) !handler = do
     modifyTVar' requestSubs (IntMap.insert sid handler') where
         handler' js = case reqFromJSON js of
             Json.Success (Some rq) -> return $! toJSON <$> handler rq
-            Error _                -> retry
+            Error _                -> Nothing
 
 onNotify :: Notify ntfy => Connection -> (ntfy -> IO ()) -> STM ()
 onNotify conn@(Connection{..}) !handler = do
@@ -154,7 +154,7 @@ onNotify conn@(Connection{..}) !handler = do
     modifyTVar' notifySubs (IntMap.insert sid handler') where
         handler' js = case ntfyFromJSON js of
             Json.Success ntfy -> return $! handler ntfy
-            Error _           -> retry
+            Error _           -> Nothing
 
 onDisconnect :: Connection -> STM () -> STM ()
 onDisconnect !(Connection {..}) !handler =
@@ -183,8 +183,8 @@ dispatch conn@(Connection {..}) !c = case c of
     Request rqId js  -> do
         handler <- atomically $ do
             subs <- readTVar requestSubs
-            let trySubs = foldr mplus retry $ map ($ js) $ IntMap.elems subs
-            fmap Just trySubs `orElse` return Nothing
+            return $ msum $ map ($ js) $ IntMap.elems subs
+
 
         void $ forkIO $ maybe invalidRequest respond handler
 
@@ -197,8 +197,7 @@ dispatch conn@(Connection {..}) !c = case c of
     Notification js -> do
         handler <- atomically $ do
             subs <- readTVar notifySubs
-            let trySubs = foldr mplus retry $ map ($ js) $ IntMap.elems subs
-            fmap Just trySubs `orElse` return Nothing
+            return $ msum $ map ($ js) $ IntMap.elems subs
 
         void $ forkIO $ fromMaybe noHandler handler
 
